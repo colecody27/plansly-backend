@@ -1,0 +1,393 @@
+openapi: 3.0.3
+
+info:
+  title: Collaborative Planning API
+  description: >
+    API for creating and collaborating on plans such as trips, events,
+    and group purchases. Users can invite participants, propose activities,
+    chat, and track costs.
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:5000
+    description: Local development
+  - url: https://api.example.com
+    description: Production (placeholder)
+
+tags:
+  - name: Auth
+    description: Authentication and user identity
+  - name: Users
+    description: User profiles
+  - name: Plans
+    description: Plans (trips, events, group purchases)
+  - name: Activities
+    description: Trip activities
+  - name: Chat
+    description: Plan chat messages
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /me:
+    get:
+      tags: [Users]
+      summary: Get the current authenticated user
+      responses:
+        "200":
+          description: Authenticated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /plans:
+    post:
+      tags: [Plans]
+      summary: Create a new plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePlanRequest"
+      responses:
+        "201":
+          description: Plan created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+
+    get:
+      tags: [Plans]
+      summary: Get all plans for the authenticated user
+      responses:
+        "200":
+          description: List of plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+
+  /plans/{plan_id}:
+    get:
+      tags: [Plans]
+      summary: Get a specific plan
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Plan details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+
+    patch:
+      tags: [Plans]
+      summary: Update plan metadata
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePlanRequest"
+      responses:
+        "200":
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+
+  /plans/{plan_id}/activities:
+    post:
+      tags: [Activities]
+      summary: Propose a new activity (trip only)
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateActivityRequest"
+      responses:
+        "201":
+          description: Activity created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Activity"
+
+  /plans/{plan_id}/activities/{activity_id}/vote:
+    post:
+      tags: [Activities]
+      summary: Vote for an activity
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: activity_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Vote registered
+
+  /plans/{plan_id}/messages:
+    get:
+      tags: [Chat]
+      summary: Get recent chat messages
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+
+    post:
+      tags: [Chat]
+      summary: Send a chat message
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMessageRequest"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        hosting_count:
+          type: integer
+        participating_count:
+          type: integer
+        organized_plans:
+          type: array
+          items:
+            type: string
+        joined_plans:
+          type: array
+          items:
+            type: string
+        preferences:
+          type: object
+          properties:
+            theme:
+              type: string
+              enum: [light, dark]
+            notifications:
+              type: boolean
+            currency:
+              type: string
+
+    Plan:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [trip, event, group_purchase]
+        organizer_id:
+          type: string
+        participant_ids:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+        status:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        costs:
+          type: object
+          properties:
+            total:
+              type: number
+              format: float
+            per_person:
+              type: number
+              format: float
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/Activity"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        invitation_id:
+          type: string
+
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+        link:
+          type: string
+        expires_at:
+          type: string
+          format: date-time 
+        created_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [active, expired, used]
+        uses:
+          type: integer
+        max_uses:
+          type: integer
+
+    Activity:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        link:
+          type: string
+        cost:
+          type: number
+          format: float
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        proposer_id:
+          type: string
+        status:
+          type: string
+          enum: [proposed, accepted, rejected]
+        votes:
+          type: array
+          items:
+            type: string
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        sender_id:
+          type: string
+        text:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    CreatePlanRequest:
+      type: object
+      required: [type, description, deadline]
+      properties:
+        type:
+          type: string
+          enum: [trip, event, group_purchase]
+        description:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+
+    CreateActivityRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        link:
+          type: string
+        cost:
+          type: number
+          format: float
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+
+    CreateMessageRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
