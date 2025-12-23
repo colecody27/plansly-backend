@@ -4,7 +4,7 @@ from dotenv import find_dotenv, load_dotenv
 from os import environ as env
 from authlib.integrations.flask_client import OAuth
 from app.extensions import oauth, jwt
-from app.services.auth_service import Auth0JWTBearerTokenValidator
+from app.services.auth import Auth0JWTBearerTokenValidator
 from mongoengine import connect
 # from app.logger import init_app
 # from app.config import Config
@@ -17,7 +17,7 @@ def create_app():
     # jwt.init_app(app) # Connect JWT
 
     # Connect blueprints 
-    from app.routes.auth_route import auth_bp
+    from app.routes.auth import auth_bp
     app.register_blueprint(auth_bp)
     # from app.routes.alerts import alert_bp
     # app.register_blueprint(alert_bp)

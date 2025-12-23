@@ -4,10 +4,9 @@ import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
 from app.models.user import User
-
-# from app.services import auth_service
 from app.extensions import oauth
-# from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.services import user_service
+from datetime import timedelta
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -30,15 +29,14 @@ def callback():
     except Exception as e:
         abort(401, f"Invalid Auth0 token: {str(e)}")
     
-    user = User(
-        auth0_id=claims['sub'],
-        name=claims['name'],
-        email=claims['email'],
-        picture=claims['picture']
-    )
-    user.save()
-    app_token = create_access_token(identity=user.auth0_id)
+    # Create or sync user
+    user = User.objects(auth0_id=claims['sub']).first()
+    response = user_service.sync_user(user, claims) if user else user_service.create_user(claims)
 
+    if 'error' in response:
+        return jsonify({'error': 'There was an error when logging in. Please try again.'})
+
+    app_token = create_access_token(identity=user.auth0_id, expires_delta=timedelta(minutes=15))
     return jsonify({'token': app_token})
 
 @auth_bp.route("/")
@@ -47,7 +45,6 @@ def home():
 
 @auth_bp.route("/logout")
 def logout():
-    session.clear()
     return redirect(
         "https://" + env.get("AUTH0_DOMAIN")
         + "/v2/logout?"

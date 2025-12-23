@@ -60,3 +60,5 @@ def verify_auth0_jwt():
         abort(401, "Invalid claims")
     except Exception:
         abort(401, "Invalid token")
+
+
