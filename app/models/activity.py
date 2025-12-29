@@ -10,3 +10,16 @@ class Activity(EmbeddedDocument):
     proposer_id = StringField(required=True)
     status = StringField(choices=["proposed", "accepted", "rejected"], default="proposed")
     votes = ListField(StringField())
+
+    def to_dict(self):
+        return {
+            'name': self.name,
+            'description': self.description,
+            'link': self.link,
+            'cost': self.cost,
+            'start_time': self.start_time.isoformat() if self.start_time else None,
+            'end_time': self.end_time.isoformat() if self.end_time else None,
+            'proposer_id': self.proposer_id,
+            'status': self.status,
+            'votes': self.votes
+        }

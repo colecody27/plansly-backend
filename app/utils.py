@@ -1,9 +1,10 @@
 import requests
 from jose import jwt
 from flask import request, abort
+from dateutil import parser
 
-AUTH0_DOMAIN = "your-tenant.us.auth0.com"
-AUTH0_AUDIENCE = "https://api.yourapp.com"
+AUTH0_DOMAIN = "dev-2a6jhuwy5dxkqin0.us.auth0.com"
+AUTH0_AUDIENCE = "https://api.yourapp.com" # TODO - Update audience
 AUTH0_ALGORITHMS = ["RS256"]
 
 JWKS_URL = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
@@ -60,5 +61,21 @@ def verify_auth0_jwt():
         abort(401, "Invalid claims")
     except Exception:
         abort(401, "Invalid token")
+
+def normalize_args(valid_params, args):
+    for param, cast_type in valid_params.items():
+        value = args.get(param, None)
+        if value:
+            try:
+                if param == 'deadline':
+                    args[param] = parser.isoparse(value)
+                else:
+                    args[param] = cast_type(value)
+            except Exception as e:
+                print(e)
+                print(f'Error casting {value} to {cast_type}')
+                # return {'error': 'Error casting {value} to {cast_type}'}
+    
+    return {'success': args}
 
 
