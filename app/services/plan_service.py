@@ -1,5 +1,7 @@
 from app.services import invitation_service
 from app.models.plan import Plan
+from app.models.user import User
+from app.models.activity import Activity
 
 def create_plan(data):
     try:
@@ -26,8 +28,22 @@ def update_plan():
 def delete_plan():
     pass
 
-def create_activity():
-    pass
+def create_activity(data, proposer, plan):
+    try:
+        activity = Activity(
+            name=data.get('name', None),
+            description=data.get('description', None),
+            link=data.get('link', None),
+            cost=data.get('cost', 0.0),
+            start_time=data.get('start_time', None),
+            end_time=data.get('end_time', None),
+            votes=[proposer.name]
+        )
+        plan.activities.append(activity)
+        plan.save()
+    except Exception as e:
+        return {'error': 'Error creating activity'}
+    return {'success': activity}
 
 def update_activity():
     pass
