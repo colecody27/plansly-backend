@@ -6,6 +6,7 @@ from authlib.integrations.flask_client import OAuth
 from app.extensions import oauth, jwt
 from app.services.auth import Auth0JWTBearerTokenValidator
 from mongoengine import connect
+from app.errors import AppError
 # from app.logger import init_app
 # from app.config import Config
 
@@ -34,6 +35,16 @@ def create_app():
         domain=env.get('AUTH0_DOMAIN'),
         audience=env.get('AUTH0_CLIENT_ID')
     )
+
+    @app.errorhandler(AppError)
+    def handle_app_error(err):
+        response = {
+            "error": err.error_code,
+            "message": err.message,
+        }
+        if err.details:
+            response["details"] = err.details
+        return response, err.status_code
 
     oauth.init_app(app)
     oauth.register(

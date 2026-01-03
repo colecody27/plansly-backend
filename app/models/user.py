@@ -17,4 +17,4 @@ class User(Document):
     # Preferences
     notifications = BooleanField()
     light_theme = BooleanField()
-    currency = StringField()
+    country = StringField()

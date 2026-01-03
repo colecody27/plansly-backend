@@ -12,3 +12,15 @@ class Invitation(Document):
     )
     uses = IntField(default=0)
     max_uses = IntField(default=50)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "link": self.link,
+            "plan_id": str(self.plan_id.id) if self.plan_id else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "status": self.status,
+            "uses": self.uses,
+            "max_uses": self.max_uses
+        }

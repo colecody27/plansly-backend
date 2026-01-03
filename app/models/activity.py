@@ -1,4 +1,5 @@
 from mongoengine import EmbeddedDocument, StringField, FloatField, DateTimeField, ListField
+from app.services.user_service import get_users
 
 class Activity(EmbeddedDocument):
     name = StringField(required=True)
@@ -21,5 +22,5 @@ class Activity(EmbeddedDocument):
             'end_time': self.end_time.isoformat() if self.end_time else None,
             'proposer_id': self.proposer_id,
             'status': self.status,
-            'votes': self.votes
+            'votes': get_users(self.votes)
         }

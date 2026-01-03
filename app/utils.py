@@ -2,6 +2,7 @@ import requests
 from jose import jwt
 from flask import request, abort
 from dateutil import parser
+from app.errors import ValidationError
 
 AUTH0_DOMAIN = "dev-2a6jhuwy5dxkqin0.us.auth0.com"
 AUTH0_AUDIENCE = "https://api.yourapp.com" # TODO - Update audience
@@ -72,10 +73,8 @@ def normalize_args(valid_params, args):
                 else:
                     args[param] = cast_type(value)
             except Exception as e:
-                print(e)
-                print(f'Error casting {value} to {cast_type}')
-                # return {'error': 'Error casting {value} to {cast_type}'}
+                raise ValidationError("Invalid data", details={"exception": str(e)})
     
-    return {'success': args}
+    return args
 
 
