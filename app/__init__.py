@@ -3,10 +3,11 @@ from flask import Flask
 from dotenv import find_dotenv, load_dotenv
 from os import environ as env
 from authlib.integrations.flask_client import OAuth
-from app.extensions import oauth, jwt
+from app.extensions import oauth, jwt, socketio
 from app.services.auth import Auth0JWTBearerTokenValidator
 from mongoengine import connect
 from app.errors import AppError
+from app.sockets.socket import socketio
 # from app.logger import init_app
 # from app.config import Config
 
@@ -16,6 +17,8 @@ def create_app():
     # app.config.from_object(Config) # Environment configurations
     # db.init_app(app) # Connect database 
     # jwt.init_app(app) # Connect JWT
+    socketio.init_app(app)
+    from app.sockets import socket
 
     # Connect blueprints 
     from app.routes.auth import auth_bp

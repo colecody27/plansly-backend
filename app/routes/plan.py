@@ -211,12 +211,17 @@ def remove_participant(plan_id, participant_id):
         'data': plan,
         'msg': 'Participant removed succesfully'}), 204
 
-@plan_bp.route('/<plan_id>', methods=['POST'])
+@plan_bp.route('/<plan_id>/lock-toggle', methods=['PUT'])
 @jwt_required()
 def lock_plan(plan_id):
-    pass
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized 
 
-@plan_bp.route('/<plan_id>', methods=['POST'])
-@jwt_required()
-def send_message():
-    pass
+    user = user_service.get_user(uid)
+    plan = plan_service.get_plan(plan_id, user.id)
+    plan_service.lock_plan(plan, user)
+
+    return jsonify({'success': True,
+        'data': plan,
+        'msg': 'Plan locked succesfully'}), 204

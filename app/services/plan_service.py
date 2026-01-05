@@ -1,6 +1,7 @@
 from app.services import invitation_service, user_service
 from app.models.plan import Plan
 from app.models.user import User
+from app.models.message import Message
 from app.models.activity import Activity
 from app.errors import DatabaseError, PlanNotFound, UserNotAuthorized, ActivityNotFound, NotPlanOrganizer
 
@@ -47,6 +48,19 @@ def get_plan(plan_id, uid):
 def serialize_plan(plan_dict):
     plan_dict['votes'] = user_service.get_users(plan_dict['votes'])
     return plan_dict
+
+def lock_plan(plan, user):
+    if user.id != plan.organizer_id:
+        raise NotPlanOrganizer
+
+    status = 'active' if plan.status == 'locked' else 'locked'
+    plan.status = status
+    
+    try:    
+        plan.save()
+    except Exception as e:
+        raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    return plan
 
 def update_plan():
     pass 
@@ -113,8 +127,20 @@ def vote_activity(plan, activity_id, user):
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return plan
 
-def send_message():
-    pass
+def send_message(plan, user, message):
+    if plan.status != 'active':
+        raise UserNotAuthorized
+    
+    message = Message(
+        sender_id=user.id,
+        text=message
+    )
+    plan.messages.append(message)
+    try:
+        plan.save()
+    except Exception as e:
+        raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    return message
 
 
 

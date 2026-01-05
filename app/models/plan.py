@@ -11,7 +11,9 @@ class Plan(Document):
         choices=["trip", "event", "group_purchase"],
         required=True
     )
-    status = StringField(default="active")
+    status = StringField(
+        default="active",
+        options=['active', 'locked'])
     organizer_id = ReferenceField('User', required=True)  
     participant_ids = ListField(ReferenceField('User'))
     name = StringField()
