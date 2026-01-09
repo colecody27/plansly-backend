@@ -25,8 +25,8 @@ def create_app():
     app.register_blueprint(auth_bp)
     from app.routes.plan import plan_bp
     app.register_blueprint(plan_bp)
-    # from app.routes.sensors import sensor_bp
-    # app.register_blueprint(sensor_bp)
+    from app.routes.user import user_bp
+    app.register_blueprint(user_bp)
 
     ENV_FILE = find_dotenv()
     if ENV_FILE:

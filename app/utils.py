@@ -3,6 +3,7 @@ from jose import jwt
 from flask import request, abort
 from dateutil import parser
 from app.errors import ValidationError
+from datetime import timezone
 
 AUTH0_DOMAIN = "dev-2a6jhuwy5dxkqin0.us.auth0.com"
 AUTH0_AUDIENCE = "https://api.yourapp.com" # TODO - Update audience
@@ -68,7 +69,7 @@ def normalize_args(valid_params, args):
         value = args.get(param, None)
         if value:
             try:
-                if param == 'deadline':
+                if param in ['deadline', 'start_day', 'end_day']:
                     args[param] = parser.isoparse(value)
                 else:
                     args[param] = cast_type(value)
@@ -77,4 +78,9 @@ def normalize_args(valid_params, args):
     
     return args
 
-
+def _naive_utc(dt):
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)

@@ -30,10 +30,10 @@ def create_plan():
     data['organizer_id'] = user.id
     data = normalize_args(PLAN_ALLOWED_FIELDS, data)
 
-    plan = plan_service.create_plan(data)
+    plan = plan_service.create_plan(data, user)
 
     return jsonify({'success': True,
-                    'data': plan,
+                    'data': plan.to_dict(),
                     'msg': 'Plan created succesfully'}), 200
 
 @plan_bp.route('/<plan_id>', methods=['GET'])
@@ -44,10 +44,10 @@ def get_plan(plan_id):
         raise Unauthorized
 
     user = user_service.get_user(uid)
-    plan = plan_service.get_plan(plan_id, user.id)
+    plan = plan_service.get_plan(plan_id, user)
 
     return jsonify({'success': True,
-                    'data': plan,
+                    'data': plan.to_dict(),
                     'msg': 'Plan retreived succesfully'}), 200
 
 @plan_bp.route('', methods=['GET'])
@@ -58,7 +58,8 @@ def get_plans():
         raise Unauthorized 
 
     user = user_service.get_user(uid)
-    plans = plan_service(user)
+    plans = plan_service.get_plans(user)
+    plans = [plan.to_dict() for plan in plans]
     
     return jsonify({'success': True,
                 'data': plans,
@@ -132,7 +133,7 @@ def vote_activity(plan_id, activity_id):
             'data': plan,
             'msg': 'Activity has been voted for succesfully'}), 200
 
-@plan_bp.route('/<plan_id>', methods=['POST'])
+@plan_bp.route('/<plan_id>/invite', methods=['GET'])
 @jwt_required()
 def get_invite(plan_id):
     uid = get_jwt_identity()
@@ -140,7 +141,7 @@ def get_invite(plan_id):
         raise Unauthorized 
 
     user = user_service.get_user(uid)
-    plan = plan_service.get_plan(plan_id, user.id)
+    plan = plan_service.get_plan(plan_id, user)
     invite = invitation_service.get_invite(plan, user)
     
     invite = invite.to_dict()

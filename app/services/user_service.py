@@ -34,7 +34,14 @@ def get_user(uid):
     return user
 
 def get_users(ids):
-    return User.objects(auth0_id__in=ids).only('name')
+    users = User.objects(id__in=ids).only('name', 'picture')
+    return [
+        {
+            'name': user.name,
+            'picture': user.picture
+        }
+        for user in users
+    ]
 
 def add_plan(plan, user):
     if plan.organizer_id != user.id:

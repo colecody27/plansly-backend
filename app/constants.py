@@ -2,15 +2,23 @@ from datetime import datetime
 
 USER_ALLOWED_FIELDS={
     'name': str,
-    'light_mode': bool,
+    'picture': str,
     'notifications': bool,
-    'currency': str
+    'light_theme': bool,
+    'country': str, 
+    'city': str, 
+    'state': str
 }
 
 PLAN_ALLOWED_FIELDS={
     'name': str,
     'description': str,
     'deadline': datetime,
+    'start_day': datetime,
+    'end_day': datetime,
+    'country': str,
+    'city': str,
+    'state': str,
     'theme': str,
     'type': str,
 }

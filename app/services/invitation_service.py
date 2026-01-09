@@ -2,12 +2,15 @@ import secrets
 from app.models.invitation import Invitation
 from app.services import plan_service, user_service
 from datetime import timezone, datetime, timedelta
-from app.errors import DatabaseError, InviteNotFound, NotPlanOrganizer
+from app.errors import DatabaseError, InviteNotFound, NotPlanOrganizer, UserNotAuthorized
+from app.utils import _naive_utc
 
 LINK_VALIDITY = timedelta(days=3)
 
+
+
 def create_invite(plan_id):
-    creation = datetime.now(timezone.utc)
+    creation = _naive_utc(datetime.now(timezone.utc))
     expiry = creation + LINK_VALIDITY
     link = secrets.token_urlsafe(32) # TODO - Verify that generated token is unique
 
@@ -24,17 +27,17 @@ def create_invite(plan_id):
     return invite
 
 def get_invite(plan, user):
-    if user.id != plan.organizer_id:
-        raise NotPlanOrganizer
+    if user != plan.organizer and user not in plan.participants:
+        raise UserNotAuthorized
     
-    invite = Invitation.objects(plan.invitation_id).first()
+    invite = plan.invitation
     if not invite:
         raise InviteNotFound
 
     if not valid_invite(invite.id):
         expire_invite(invite)
         invite = create_invite(plan.id)
-        plan.invitation_id = invite.id # TODO - Use update plan logic instead
+        plan.invitation = invite 
         try:
             plan.save()
         except Exception as e:
@@ -43,12 +46,13 @@ def get_invite(plan, user):
     return invite
 
 def valid_invite(invite_id):
-    invite = Invitation.objects(invite_id).first()
+    invite = Invitation.objects(id=invite_id).first()
     if not invite:
         return False
     
-    curr_time = datetime.now(timezone.utc)
-    if curr_time > invite.expires_at or invite.uses >= invite.max_uses:
+    curr_time = _naive_utc(datetime.now(timezone.utc))
+    expires_at = _naive_utc(invite.expires_at)
+    if expires_at and curr_time > expires_at or invite.uses >= invite.max_uses:
         return False
     
     return True
@@ -76,5 +80,4 @@ def expire_invite(invite):
     except Exception as e:
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return {'success'}
-
 

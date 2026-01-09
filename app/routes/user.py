@@ -7,6 +7,7 @@ from app.models.user import User
 from app.extensions import oauth
 from app.services import user_service
 from datetime import timedelta
+from app.errors import Unauthorized
 
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 
@@ -58,20 +59,20 @@ def update_prefernces():
         return jsonify({'message': 'Settings updated successfully'})
     return jsonify({'message': 'No valid fields provided'}), 400
 
-@user_bp.route(methods=['GET'])
+@user_bp.route('', methods=['GET'])
 @jwt_required()
 def get_user():
     uid = get_jwt_identity()
     if not uid:
-        return jsonify({'error': 'Invalid token'})    
+        raise Unauthorized
 
-    user = User(auth0_id=uid).first()
-    if not user:
-        return jsonify({'error': 'User does not exist'})
+    user = user_service.get_user(uid)
 
-    return jsonify({k: v for k, v in user.to_dict().items() if k != 'auth0_id'})
+    return jsonify({'success': True,
+                'data': user.to_dict(),
+                'msg': 'User retreived succesfully'}), 200
 
-@user_bp.route(methods=['PUT'])
+@user_bp.route('', methods=['PUT'])
 @jwt_required()
 def add_mutuals():
     pass 

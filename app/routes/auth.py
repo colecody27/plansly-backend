@@ -13,7 +13,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @auth_bp.route("/login")
 def login():
     return oauth.auth0.authorize_redirect(
-        redirect_uri=url_for("auth.callback", _external=True)
+        redirect_uri="http://localhost:5173/api/auth/callback"
     )
 
 @auth_bp.route("/callback", methods=["GET", "POST"])
@@ -31,12 +31,12 @@ def callback():
     
     # Create or sync user
     user = User.objects(auth0_id=claims['sub']).first()
-    response = user_service.sync_user(user, claims) if user else user_service.create_user(claims)
+    if user:
+        user_service.sync_user(user, claims)
+    else:
+        user = user_service.create_user(claims)
 
-    if 'error' in response:
-        return jsonify({'error': 'There was an error when logging in. Please try again.'})
-
-    app_token = create_access_token(identity=user.auth0_id, expires_delta=timedelta(minutes=15))
+    app_token = create_access_token(identity=str(user.id), expires_delta=timedelta(minutes=60))
     return jsonify({'token': app_token})
 
 @auth_bp.route("/")

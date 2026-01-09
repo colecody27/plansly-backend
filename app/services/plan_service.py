@@ -4,22 +4,28 @@ from app.models.user import User
 from app.models.message import Message
 from app.models.activity import Activity
 from app.errors import DatabaseError, PlanNotFound, UserNotAuthorized, ActivityNotFound, NotPlanOrganizer
+from mongoengine.queryset.visitor import Q
 
-def create_plan(data):
+
+def create_plan(data, user):
     plan = Plan(
         name=data.get('name'),
         description=data.get('description'),
         type=data.get('type'),
-        organizer_id=data.get('organizer_id'),
+        organizer=data.get('organizer_id'),
         deadline=data.get('deadline'),
-        theme=data.get('theme'),
+        start_day=data.get('start_day'),
+        end_day=data.get('end_day'),
+        country=data.get('country'),
+        state=data.get('city'),
+        city=data.get('state')
     )
 
     try:
         plan.save()
     except Exception as e:
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
-    plan.invitation_id = invitation_service.create_invite(plan.id).id
+    plan.invitation = invitation_service.create_invite(plan.id)
 
     try:
         plan.save()
@@ -28,25 +34,22 @@ def create_plan(data):
     return plan
 
 def get_plans(user):
-    plans = Plan.objects(id__in=user.plans)
-    plans = [serialize_plan(plan.to_dict()) for plan in plans]
+    plans = Plan.objects(Q(organizer=user) | Q(participants=user))
 
     return plans
 
-def get_plan(plan_id, uid):
+def get_plan(plan_id, user):
     plan = Plan.objects(id=plan_id).first() 
     if not plan:
         raise PlanNotFound
-    if uid != plan.organizer_id or uid not in plan.participant_ids:
-        raise UserNotAuthorized
+    if plan.organizer != user and user not in plan.participants:
+        raise UserNotAuthorized(user.id)
     
-    plan = plan.to_dict()
-    plan = serialize_plan(plan, uid)
-
     return plan
 
 def serialize_plan(plan_dict):
-    plan_dict['votes'] = user_service.get_users(plan_dict['votes'])
+    plan_dict['organizer'] = user_service.get_user(plan_dict['participants'])
+    plan_dict['participants'] = user_service.get_users(plan_dict['participants'])
     return plan_dict
 
 def lock_plan(plan, user):
@@ -68,6 +71,7 @@ def update_plan():
 def delete_plan():
     pass
 
+# TODO - Update plan costs (indiviudal and total)
 def create_activity(plan, proposer, data):
     activity = Activity(
         name=data.get('name', None),
