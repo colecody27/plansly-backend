@@ -27,7 +27,6 @@ def create_plan():
     user = user_service.get_user(uid)
 
     data = request.get_json()
-    data['organizer_id'] = user.id
     data = normalize_args(PLAN_ALLOWED_FIELDS, data)
 
     plan = plan_service.create_plan(data, user)
@@ -60,7 +59,7 @@ def get_plans():
     user = user_service.get_user(uid)
     plans = plan_service.get_plans(user)
     plans = [plan.to_dict() for plan in plans]
-    
+
     return jsonify({'success': True,
                 'data': plans,
                 'msg': 'Plans retreived succesfully'}), 200
@@ -86,12 +85,13 @@ def create_activity(plan_id):
     
     data = request.get_json()
     data = normalize_args(ACTIVITY_ALLOWED_FIELDS, data)
+    print(data)
     
-    plan = plan_service.get_plan(plan_id)
+    plan = plan_service.get_plan(plan_id, user)
     activity = plan_service.create_activity(plan, user, data)
     
     return jsonify({'success': True,
-            'data': activity,
+            'data': activity.to_dict(),
             'msg': 'Activity created succesfully'}), 200
 
 @plan_bp.route('/<plan_id>/activity/<activity_id>', methods=['POST'])
@@ -124,13 +124,12 @@ def vote_activity(plan_id, activity_id):
         raise Unauthorized 
 
     user = user_service.get_user(uid)
-    plan = plan_service.get_plan(plan_id, uid)
+    plan = plan_service.get_plan(plan_id, user)
     
-    plan_service.vote_activity(plan, activity_id, user.id)
-    plan = plan_service.serialize_plan(plan.to_dict())
+    plan_service.vote_activity(plan, activity_id, user)
     
     return jsonify({'success': True,
-            'data': plan,
+            'data': {},
             'msg': 'Activity has been voted for succesfully'}), 200
 
 @plan_bp.route('/<plan_id>/invite', methods=['GET'])

@@ -5,6 +5,7 @@ from app.models.message import Message
 from app.models.activity import Activity
 from app.errors import DatabaseError, PlanNotFound, UserNotAuthorized, ActivityNotFound, NotPlanOrganizer
 from mongoengine.queryset.visitor import Q
+import uuid
 
 
 def create_plan(data, user):
@@ -12,7 +13,7 @@ def create_plan(data, user):
         name=data.get('name'),
         description=data.get('description'),
         type=data.get('type'),
-        organizer=data.get('organizer_id'),
+        organizer=user,
         deadline=data.get('deadline'),
         start_day=data.get('start_day'),
         end_day=data.get('end_day'),
@@ -76,18 +77,19 @@ def create_activity(plan, proposer, data):
     activity = Activity(
         name=data.get('name', None),
         description=data.get('description', None),
+        proposer=proposer,
         link=data.get('link', None),
         cost=data.get('cost', 0.0),
         start_time=data.get('start_time', None),
         end_time=data.get('end_time', None),
-        votes=[proposer.name]
+        votes=[proposer]
     )
     plan.activities.append(activity)
     try:
         plan.save()
     except Exception as e:
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
-    return {'success': activity}
+    return activity
 
 def update_activity():
     pass
@@ -116,15 +118,15 @@ def remove_participant(plan, organizer_id, participant_id):
 
 def vote_activity(plan, activity_id, user):
     activity = next(
-        (a for a in plan.activities if a.id == activity_id),
+        (a for a in plan.activities if a.activity_id == activity_id),
         None)
     if not activity:
         raise ActivityNotFound
     
-    if user.auth0_id in activity.votes:
-        activity.votes.remove(user.auth0_id)
+    if user in activity.votes:
+        activity.votes.remove(user)
     else:
-        activity.votes.append(user.auth0_id)
+        activity.votes.append(user)
     try:
         plan.save()
     except Exception as e:

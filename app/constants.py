@@ -30,5 +30,4 @@ ACTIVITY_ALLOWED_FIELDS={
     'cost': float,
     'start_time': datetime,
     'end_time': datetime,
-    'deadline': datetime
 }
