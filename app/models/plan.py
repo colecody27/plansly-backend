@@ -19,7 +19,7 @@ class Plan(Document):
     name = StringField()
     description = StringField()
     deadline = DateTimeField()
-    costs = EmbeddedDocumentField(PlanCosts)
+    costs = EmbeddedDocumentField(PlanCosts, default=PlanCosts)
     activities = ListField(EmbeddedDocumentField('Activity'))
     messages = ListField(EmbeddedDocumentField('Message'))
     invitation = ReferenceField('Invitation') 

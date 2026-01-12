@@ -17,7 +17,7 @@ plan_bp = Blueprint('plan', __name__, url_prefix='/plan')
 
 # TODO - Serialize plan in all responses 
 
-@plan_bp.route('/create', methods=['PUT'])
+@plan_bp.route('/create', methods=['POST', 'PUT'])
 @jwt_required()
 def create_plan():
     uid = get_jwt_identity()
@@ -64,10 +64,24 @@ def get_plans():
                 'data': plans,
                 'msg': 'Plans retreived succesfully'}), 200
 
-@plan_bp.route('/update/<plan_id>', methods=['POST'])
+@plan_bp.route('/<plan_id>/update', methods=['PUT'])
 @jwt_required()
-def update_plan():
-    pass
+def update_plan(plan_id):
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized
+
+    user = user_service.get_user(uid)
+    plan = plan_service.get_plan(plan_id, user)
+
+    data = request.get_json()
+    data = normalize_args(PLAN_ALLOWED_FIELDS, data)
+
+    plan = plan_service.update_plan(plan, user, data)
+
+    return jsonify({'success': True,
+                    'data': plan.to_dict(),
+                    'msg': 'Plan created succesfully'}), 200
 
 @plan_bp.route('/delete/<plan_id>', methods=['DELETE'])
 @jwt_required()
@@ -116,7 +130,7 @@ def get_activies():
 def delete_activity():
     pass
 
-@plan_bp.route('/<plan_id>/activity/<activity_id>/vote', methods=['POST'])
+@plan_bp.route('/<plan_id>/activity/<activity_id>/vote', methods=['POST', 'PUT'])
 @jwt_required()
 def vote_activity(plan_id, activity_id):
     uid = get_jwt_identity()
@@ -126,10 +140,26 @@ def vote_activity(plan_id, activity_id):
     user = user_service.get_user(uid)
     plan = plan_service.get_plan(plan_id, user)
     
-    plan_service.vote_activity(plan, activity_id, user)
+    activity = plan_service.vote_activity(plan, activity_id, user)
     
     return jsonify({'success': True,
-            'data': {},
+            'data': activity.to_dict(),
+            'msg': 'Activity has been voted for succesfully'}), 200
+
+@plan_bp.route('/<plan_id>/activity/<activity_id>/finalize', methods=['PUT'])
+@jwt_required()
+def lock_activity(plan_id, activity_id):
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized 
+
+    user = user_service.get_user(uid)
+    plan = plan_service.get_plan(plan_id, user)
+    
+    activity = plan_service.lock_activity(plan, user, activity_id)
+    
+    return jsonify({'success': True,
+            'data': activity.to_dict(),
             'msg': 'Activity has been voted for succesfully'}), 200
 
 @plan_bp.route('/<plan_id>/invite', methods=['GET'])

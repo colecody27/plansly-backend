@@ -1,5 +1,7 @@
 from datetime import datetime
 
+# TODO - Verify that costs are never negative 
+
 USER_ALLOWED_FIELDS={
     'name': str,
     'picture': str,
