@@ -6,7 +6,7 @@ from app.models.activity import Activity
 from app.errors import DatabaseError, PlanNotFound, UserNotAuthorized, ActivityNotFound, NotPlanOrganizer
 from mongoengine.queryset.visitor import Q
 import uuid
-from app.constants import PLAN_ALLOWED_FIELDS
+from app.constants import PLAN_ALLOWED_FIELDS, ACTIVITY_ALLOWED_FIELDS
 
 
 def create_plan(data, user):
@@ -102,8 +102,27 @@ def create_activity(plan, proposer, data):
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return activity
 
-def update_activity():
-    pass
+def update_activity(plan, user, activity, data):
+    if user != plan.organizer:
+        raise UserNotAuthorized
+    
+    for field in ACTIVITY_ALLOWED_FIELDS:
+        if field in data:
+            setattr(activity, field, data[field])
+
+    try:
+        plan.save()
+    except Exception as e:
+        raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    return activity
+
+def get_activity(plan, activity_id):
+    activity = next((a for a in plan.activities if a.activity_id == activity_id), None)
+    if not activity:
+        raise ActivityNotFound
+    
+    return activity
+    
 
 def delete_activity():
     pass
@@ -117,10 +136,20 @@ def lock_activity(plan, activity_id, user=None):
     if not activity:
         raise ActivityNotFound
     
+    # Update activity status and plan costs
     total_participants = len(plan.participants) + 1
-    activity.status = 'accepted'
+    activity.status = 'confirmed'
     plan.costs.total += float(activity.cost * total_participants)
     plan.costs.per_person = float(plan.costs.total/total_participants)
+
+    # Update status of remaining activities to rejected
+    rejected_activities = [a for a in plan.activities 
+                        if a.activity_id != activity_id
+                        if a.status == 'proposed'
+                        and is_overlapped(a, activity)]
+    print(rejected_activities)
+    for act in rejected_activities:
+        act.status = 'rejected'
 
     try:
         plan.save()
@@ -179,6 +208,8 @@ def vote_activity(plan, activity_id, user):
     return activity
 
 def is_overlapped(act_a, act_b):
+    if act_a.start_time == act_b.start_time:
+        return True
     # Actvity b start conflict
     if act_b.start_time < act_a.end_time and act_b.start_time > act_a.start_time:
         return True

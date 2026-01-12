@@ -32,4 +32,7 @@ ACTIVITY_ALLOWED_FIELDS={
     'cost': float,
     'start_time': datetime,
     'end_time': datetime,
+    'country': str,
+    'city': str,
+    'state': str
 }

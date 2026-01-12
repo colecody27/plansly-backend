@@ -11,8 +11,11 @@ class Activity(EmbeddedDocument):
     start_time = DateTimeField(required=True)
     end_time = DateTimeField()
     proposer = ReferenceField("User", required=True)
-    status = StringField(choices=["proposed", "accepted", "rejected"], default="proposed")
+    status = StringField(choices=["proposed", "confirmed", "rejected"], default="proposed")
     votes = ListField(ReferenceField("User"))
+    country = StringField()
+    state = StringField()
+    city = StringField()
 
     def to_dict(self):
         return {
@@ -23,7 +26,10 @@ class Activity(EmbeddedDocument):
             'cost': self.cost,
             'start_time': self.start_time.isoformat() if self.start_time else None,
             'end_time': self.end_time.isoformat() if self.end_time else None,
-            'proposer': self.proposer.name,
+            'proposer': {
+                'id':  str(self.proposer.id),
+                'name': self.proposer.name
+            },
             'status': self.status,
             "votes": [
                 {
@@ -32,4 +38,7 @@ class Activity(EmbeddedDocument):
                 } 
                 for v in self.votes
             ],
+            'country': self.country,
+            'state': self.state,
+            'city': self.city
         }

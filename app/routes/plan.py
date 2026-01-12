@@ -88,7 +88,7 @@ def update_plan(plan_id):
 def delete_plan():
     pass
 
-@plan_bp.route('/<plan_id>/activity/create', methods=['PUT'])
+@plan_bp.route('/<plan_id>/activity', methods=['POST'])
 @jwt_required()
 def create_activity(plan_id):
     uid = get_jwt_identity()
@@ -108,10 +108,23 @@ def create_activity(plan_id):
             'data': activity.to_dict(),
             'msg': 'Activity created succesfully'}), 200
 
-@plan_bp.route('/<plan_id>/activity/<activity_id>', methods=['POST'])
+@plan_bp.route('/<plan_id>/activity/<activity_id>', methods=['PUT'])
 @jwt_required()
-def update_activity():
-    pass
+def update_activity(plan_id, activity_id):
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized 
+
+    user = user_service.get_user(uid)
+    plan = plan_service.get_plan(plan_id, user)
+    data = request.get_json()
+    data = normalize_args(ACTIVITY_ALLOWED_FIELDS, data)
+    activity = plan_service.get_activity(plan, activity_id)
+    activity = plan_service.update_activity(plan, user, activity, data)
+    
+    return jsonify({'success': True,
+        'data': activity.to_dict(),
+        'msg': 'Activity created succesfully'}), 200
 
 # Activities are embedded in plans so shouldn't be needed
 @plan_bp.route('/<plan_id>/activity/<activity_id>', methods=['GET'])
@@ -156,7 +169,7 @@ def lock_activity(plan_id, activity_id):
     user = user_service.get_user(uid)
     plan = plan_service.get_plan(plan_id, user)
     
-    activity = plan_service.lock_activity(plan, user, activity_id)
+    activity = plan_service.lock_activity(plan, activity_id, user)
     
     return jsonify({'success': True,
             'data': activity.to_dict(),
