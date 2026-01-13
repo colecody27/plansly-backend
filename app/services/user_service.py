@@ -1,5 +1,6 @@
 from app.models.user import User
 from app.errors import UserNotFound, DatabaseError
+from app.constants import USER_ALLOWED_FIELDS
 
 def create_user(claims):
     user = User(
@@ -26,6 +27,16 @@ def sync_user(user, claims):
     except Exception as e:
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return {'success': user}
+
+def update_user(user, data):
+    for field in USER_ALLOWED_FIELDS:
+        if data.get(field, None) is not None:
+            setattr(user, field, data[field])
+    try:
+        user.save()
+    except Exception as e:
+        raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    return user
 
 def get_user(uid):
     user = User.objects(id=uid).first()

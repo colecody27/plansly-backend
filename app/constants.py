@@ -4,6 +4,8 @@ from datetime import datetime
 
 USER_ALLOWED_FIELDS={
     'name': str,
+    'venmo': str,
+    'bio': str,
     'picture': str,
     'notifications': bool,
     'light_theme': bool,

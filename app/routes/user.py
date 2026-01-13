@@ -8,56 +8,30 @@ from app.extensions import oauth
 from app.services import user_service
 from datetime import timedelta
 from app.errors import Unauthorized
+from app.utils import normalize_args
+from app.constants import USER_ALLOWED_FIELDS
 
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 
-@user_bp.route('/settings', methods=['POST'])
+@user_bp.route('/profile', methods=['PUT'])
 @jwt_required()
-def update_prefernces():
+def update_user():
     uid = get_jwt_identity()
     if not uid:
         return jsonify({'error': 'Invalid token'})    
 
-    user = User(auth0_id=uid).first()
-    if not user:
-        return jsonify({'error': 'User does not exist'})
-    
+    user = user_service.get_user(uid)
     data = request.get_json()
-    if not data:
-        return jsonify({'error': 'No data provided'}), 400
-    
-    allowed_fields = {
-        'name': str,
-        'light_mode': bool,
-        'notifications': bool,
-        'currency': str
-    }
+    data = normalize_args(USER_ALLOWED_FIELDS, data)
 
-    updated = False
-    for field, field_type in allowed_fields.items():
-        if field in data:
-            value = data[field]
-            try:
-                if field_type == bool:
-                    value = bool(value)
-                elif field_type == str:
-                    value = str(value).strip()
-            except Exception as e:
-                return jsonify({'error': f'Invalid type for {field}'}), 400
+    user = user_service.update_user(user, data)
+    print(user.to_dict())
 
-            if value == getattr(user, field, None):
-                continue
-            
-            setattr(user, field, value)
-            updated = True
+    return jsonify({'success': True,
+            'data': user.to_dict(),
+            'msg': 'User retreived succesfully'}), 200
 
-    if updated:
-        try:
-            user.save()
-        except Exception as e:
-            return jsonify({'error': 'Error saving profile settings'})
-        return jsonify({'message': 'Settings updated successfully'})
-    return jsonify({'message': 'No valid fields provided'}), 400
+
 
 @user_bp.route('', methods=['GET'])
 @jwt_required()

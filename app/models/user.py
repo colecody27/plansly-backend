@@ -14,6 +14,7 @@ class User(Document):
     country = StringField()
     state = StringField()
     city = StringField()
+    bio = StringField()
 
     # Trip Metadata
     hosting_count = IntField(default=0)
@@ -26,6 +27,8 @@ class User(Document):
     def to_dict(self):
         return {
             "id": str(self.id),
+            "venmo": self.venmo,
+            "bio": self.bio,
             "email": self.email,
             "name": self.name,
             "picture": self.picture,
