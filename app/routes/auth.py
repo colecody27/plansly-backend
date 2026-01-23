@@ -4,20 +4,26 @@ import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
 from app.models.user import User
-from app.extensions import oauth
+from app.extensions import oauth, cache
 from app.services import user_service
+from app.errors import ValidationError
 from datetime import timedelta
+import secrets
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @auth_bp.route("/login")
 def login():
+    redirect_to = request.args.get('redirect_to')
+    if redirect_to:
+        session['redirect_to'] = redirect_to
     return oauth.auth0.authorize_redirect(
         redirect_uri="http://localhost:5173/api/auth/callback"
     )
 
 @auth_bp.route("/callback", methods=["GET", "POST"])
 def callback():
+    redirect_to = session.pop('redirect_to', '/dashboard')
     token = oauth.auth0.authorize_access_token()
     id_token = token.get("id_token")
     if not id_token:
@@ -37,7 +43,11 @@ def callback():
         user = user_service.create_user(claims)
 
     app_token = create_access_token(identity=str(user.id), expires_delta=timedelta(minutes=60))
-    return jsonify({'token': app_token})
+    return jsonify({'success': True,
+        'data': '',
+        'redirect': redirect_to,
+        'token': app_token,
+        'msg': 'Invite accepted succesfully'}), 200
 
 @auth_bp.route("/")
 def home():

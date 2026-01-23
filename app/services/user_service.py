@@ -55,11 +55,10 @@ def get_users(ids):
     ]
 
 def add_plan(plan, user):
-    if plan.organizer_id != user.id:
-        user.participant_count += 1
-    else:
+    if plan.organizer == user:
         user.hosting_count += 1
-    user.plans.append(plan.id)
+    else:
+        user.participating_count += 1
 
     try:
         user.save()

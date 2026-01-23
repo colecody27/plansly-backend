@@ -32,6 +32,7 @@ ACTIVITY_ALLOWED_FIELDS={
     'description': str,
     'link': str,
     'cost': float,
+    'is_cost_per_person': bool,
     'start_time': datetime,
     'end_time': datetime,
     'country': str,

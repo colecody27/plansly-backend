@@ -2,7 +2,7 @@ from app.services import invitation_service, user_service
 from app.models.plan import Plan
 from app.models.user import User
 from app.models.message import Message
-from app.models.activity import Activity
+from app.models.activity import Activity, ActivityCost
 from app.errors import DatabaseError, PlanNotFound, UserNotAuthorized, ActivityNotFound, NotPlanOrganizer
 from mongoengine.queryset.visitor import Q
 import uuid
@@ -41,12 +41,13 @@ def get_plans(user):
 
     return plans
 
-def get_plan(plan_id, user):
+def get_plan(plan_id, user=None):
     plan = Plan.objects(id=plan_id).first() 
     if not plan:
         raise PlanNotFound
-    if plan.organizer != user and user not in plan.participants:
-        raise UserNotAuthorized(user.id)
+    if user:
+        if plan.organizer != user and user not in plan.participants:
+            raise UserNotAuthorized(user.id)
     
     return plan
 
@@ -56,11 +57,10 @@ def serialize_plan(plan_dict):
     return plan_dict
 
 def lock_plan(plan, user):
-    if user.id != plan.organizer_id:
+    if user != plan.organizer:
         raise NotPlanOrganizer
 
-    status = 'active' if plan.status == 'locked' else 'locked'
-    plan.status = status
+    plan.status = 'active' if plan.status == 'locked' else 'locked'
     
     try:    
         plan.save()
@@ -86,12 +86,13 @@ def delete_plan():
     pass
 
 def create_activity(plan, proposer, data):
+    cost = data.get('cost', 0.0)
     activity = Activity(
         name=data.get('name', None),
         description=data.get('description', None),
         proposer=proposer,
         link=data.get('link', None),
-        cost=data.get('cost', 0.0),
+        costs=ActivityCost(per_person=cost, total_cost=cost, is_per_person=data.get('cost_is_per_person')),
         start_time=data.get('start_time', None),
         end_time=data.get('end_time', None)
     )
@@ -127,7 +128,7 @@ def get_activity(plan, activity_id):
 def delete_activity():
     pass
 
-# TODO - Change status of all other activities in the conflicting time to rejected
+# TODO - Update lock activity to be agnostic to activity id since this may also be used by organizer
 def lock_activity(plan, activity_id, user=None):
     if user and user != plan.organizer:
         raise NotPlanOrganizer
@@ -139,7 +140,7 @@ def lock_activity(plan, activity_id, user=None):
     # Update activity status and plan costs
     total_participants = len(plan.participants) + 1
     activity.status = 'confirmed'
-    plan.costs.total += float(activity.cost * total_participants)
+    plan.costs.total += float(activity.costs.total_cost)
     plan.costs.per_person = float(plan.costs.total/total_participants)
 
     # Update status of remaining activities to rejected
@@ -147,7 +148,6 @@ def lock_activity(plan, activity_id, user=None):
                         if a.activity_id != activity_id
                         if a.status == 'proposed'
                         and is_overlapped(a, activity)]
-    print(rejected_activities)
     for act in rejected_activities:
         act.status = 'rejected'
 
@@ -158,8 +158,8 @@ def lock_activity(plan, activity_id, user=None):
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return activity
 
-def add_participant(plan, uid):
-    plan.participant_ids.append(uid)
+def add_participant(plan, user):
+    plan.participants.append(user)
     try:
         plan.save()
     except Exception as e:
@@ -184,7 +184,7 @@ def vote_activity(plan, activity_id, user):
     if not activity:
         raise ActivityNotFound
     
-    # Remove vote for conflicting activity
+    # Update votes and costs
     conflicting_activity = next((a for a in plan.activities 
                            if a.activity_id != activity_id
                            if a.status == 'proposed'
@@ -192,10 +192,13 @@ def vote_activity(plan, activity_id, user):
                            and is_overlapped(a, activity)), None)
     if conflicting_activity:
         conflicting_activity.votes.remove(user)
+        update_activity_costs(conflicting_activity)
     if user in activity.votes:
         activity.votes.remove(user)
     else:
         activity.votes.append(user)
+    update_activity_costs(activity)
+    plan.save()
 
     try:
         # Finalize activity if max votes are reached
@@ -206,6 +209,18 @@ def vote_activity(plan, activity_id, user):
     except Exception as e:
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return activity
+
+def update_activity_costs(activity):
+    is_per_person = activity.costs.is_per_person
+    votes = len(activity.votes)
+    
+    # Update total cost
+    if is_per_person:
+        activity.costs.total_cost = activity.costs.per_person * len(activity.votes) if votes else activity.costs.per_person
+    # Update per person cost
+    else:
+        activity.costs.per_person = float(activity.costs.total_cost/votes) if votes else activity.costs.total_cost
+    
 
 def is_overlapped(act_a, act_b):
     if act_a.start_time == act_b.start_time:

@@ -34,7 +34,7 @@ def get_invite(plan, user):
     if not invite:
         raise InviteNotFound
 
-    if not valid_invite(invite.id):
+    if not valid_invite(plan, invite.id):
         expire_invite(invite)
         invite = create_invite(plan.id)
         plan.invitation = invite 
@@ -45,7 +45,11 @@ def get_invite(plan, user):
 
     return invite
 
-def valid_invite(invite_id):
+# TODO - Throw exceptions instead of False, must be caught where used
+def valid_invite(plan, invite_id):
+    if str(plan.invitation.id) != invite_id:
+        return False
+    
     invite = Invitation.objects(id=invite_id).first()
     if not invite:
         return False
@@ -58,10 +62,12 @@ def valid_invite(invite_id):
     return True
     
 def accept_invite(plan, user):
+    if user in plan.participants or user == plan.organizer:
+        return plan
     plan_service.add_participant(plan, user)
     user_service.add_plan(plan, user)
 
-    invite = Invitation.objects(id=plan.invitation_id).first()
+    invite = Invitation.objects(id=str(plan.invitation.id)).first()
     if not invite:
         raise InviteNotFound
     invite.uses += 1

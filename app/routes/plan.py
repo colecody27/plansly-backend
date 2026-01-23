@@ -15,8 +15,6 @@ from app.errors import Unauthorized, InviteNotFound, InviteExpired
 
 plan_bp = Blueprint('plan', __name__, url_prefix='/plan')
 
-# TODO - Serialize plan in all responses 
-
 @plan_bp.route('/create', methods=['POST', 'PUT'])
 @jwt_required()
 def create_plan():
@@ -154,7 +152,7 @@ def vote_activity(plan_id, activity_id):
     plan = plan_service.get_plan(plan_id, user)
     
     activity = plan_service.vote_activity(plan, activity_id, user)
-    
+    print(activity.to_dict())
     return jsonify({'success': True,
             'data': activity.to_dict(),
             'msg': 'Activity has been voted for succesfully'}), 200
@@ -175,6 +173,7 @@ def lock_activity(plan_id, activity_id):
             'data': activity.to_dict(),
             'msg': 'Activity has been voted for succesfully'}), 200
 
+# TODO - Update invitations to use the generated link, must verify uniqueness when generating
 @plan_bp.route('/<plan_id>/invite', methods=['GET'])
 @jwt_required()
 def get_invite(plan_id):
@@ -191,30 +190,20 @@ def get_invite(plan_id):
         'data': invite,
         'msg': 'Invite has been retreived succesfully'}), 200
 
-@plan_bp.route('/<plan_id>/invite/invite_id>', methods=['POST'])
-@jwt_required()
+@plan_bp.route('/<plan_id>/invite/<invite_id>', methods=['GET'])
 def verify_invite(plan_id, invite_id):
-    uid = get_jwt_identity()
-    if not uid:
-        raise Unauthorized 
-
-    user = user_service.get_user(uid)
-    plan = plan_service.get_plan(plan_id, user.id)
-    if uid in plan.participant_ids:
-        return jsonify({'error': 'User is already a participant'}) # TODO - Redirect to plan page
-    if plan.invitation_id != invite_id:
-        raise InviteNotFound
-    
-    is_valid = invitation_service.valid_invite(invite_id)
+    plan = plan_service.get_plan(plan_id)
+    print(plan)
+    is_valid = invitation_service.valid_invite(plan, invite_id)
     if not is_valid:
         raise InviteExpired
     
-    plan_overview = plan_service.serialize_plan(plan.to_dict()) # TODO - Add serialization overview
+    # plan_overview = plan_service.serialize_plan(plan.to_dict()) # TODO - Add serialization overview
     return jsonify({'success': True,
-        'data': plan_overview,
+        'data': plan.to_dict(),
         'msg': 'Invitation retreived succesfully'}), 200
 
-@plan_bp.route('/<plan_id>/invite/invite_id>/accept', methods=['POST'])
+@plan_bp.route('/<plan_id>/invite/<invite_id>/accept', methods=['POST'])
 @jwt_required()
 def accept_invite(plan_id, invite_id):
     uid = get_jwt_identity()
@@ -222,19 +211,15 @@ def accept_invite(plan_id, invite_id):
         raise Unauthorized 
 
     user = user_service.get_user(uid)
-    plan = plan_service.get_plan(plan_id, user.id)
-    if uid in plan.participant_ids:
-        return jsonify({'error': 'User is already a participant'}) # TODO - Redirect to plan page
-    if plan.invitation_id != invite_id:
-        raise InviteNotFound
+    plan = plan_service.get_plan(plan_id)
     
-    is_valid = invitation_service.valid_invite(invite_id)
+    is_valid = invitation_service.valid_invite(plan, invite_id)
     if not is_valid:
         raise InviteExpired
     
     invitation_service.accept_invite(plan, user)
     return jsonify({'success': True,
-        'data': plan,
+        'data': plan.to_dict(),
         'msg': 'Invite accepted succesfully'}), 200
 
 @plan_bp.route('/<plan_id>/participant/<participant_id>', methods=['DELETE'])
@@ -262,9 +247,9 @@ def lock_plan(plan_id):
         raise Unauthorized 
 
     user = user_service.get_user(uid)
-    plan = plan_service.get_plan(plan_id, user.id)
+    plan = plan_service.get_plan(plan_id, user)
     plan_service.lock_plan(plan, user)
 
     return jsonify({'success': True,
-        'data': plan,
+        'data': plan.to_dict(),
         'msg': 'Plan locked succesfully'}), 204

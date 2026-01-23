@@ -43,11 +43,14 @@ class Plan(Document):
             'type': self.type,
             'status': self.status,
             "organizer": {
+                'id': str(self.organizer.id),
+                'venmo': self.organizer.venmo,
                 'name': self.organizer.name,
                 'picture': self.organizer.picture,
             },
             "participants": [
                 {
+                    'id': str(p.id),
                     'name': p.name,
                     'picture': p.picture,
                 } 

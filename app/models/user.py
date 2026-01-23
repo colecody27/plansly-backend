@@ -4,7 +4,7 @@ class User(Document):
     # Account Metadata
     auth0_id = StringField(required=True, unique=True)
     email = StringField(required=True, unique=True)
-    phone = StringField(unique=True)
+    phone = StringField()
     venmo = StringField(unique=True)
     name = StringField()
     picture = StringField()
