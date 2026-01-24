@@ -154,7 +154,7 @@ def vote_activity(plan_id, activity_id):
     activity = plan_service.vote_activity(plan, activity_id, user)
     print(activity.to_dict())
     return jsonify({'success': True,
-            'data': activity.to_dict(),
+            'data': plan.to_dict(),
             'msg': 'Activity has been voted for succesfully'}), 200
 
 @plan_bp.route('/<plan_id>/activity/<activity_id>/finalize', methods=['PUT'])
@@ -253,3 +253,4 @@ def lock_plan(plan_id):
     return jsonify({'success': True,
         'data': plan.to_dict(),
         'msg': 'Plan locked succesfully'}), 204
+

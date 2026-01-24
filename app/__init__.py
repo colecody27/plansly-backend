@@ -8,11 +8,13 @@ from app.services.auth import Auth0JWTBearerTokenValidator
 from mongoengine import connect
 from app.errors import AppError
 from app.sockets.socket import socketio
+from datetime import timedelta
 # from app.logger import init_app
 # from app.config import Config
 
 def create_app():
     app = Flask(__name__)
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=3)
     # init_app(app) # Logging
     # app.config.from_object(Config) # Environment configurations
     # db.init_app(app) # Connect database 

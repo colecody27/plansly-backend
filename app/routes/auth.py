@@ -14,6 +14,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @auth_bp.route("/login")
 def login():
+    session.permanent = True
     redirect_to = request.args.get('redirect_to')
     if redirect_to:
         session['redirect_to'] = redirect_to

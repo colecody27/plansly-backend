@@ -86,6 +86,8 @@ def delete_plan():
     pass
 
 def create_activity(plan, proposer, data):
+    if plan.status != 'active':
+        raise UserNotAuthorized
     cost = data.get('cost', 0.0)
     activity = Activity(
         name=data.get('name', None),

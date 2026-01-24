@@ -13,7 +13,7 @@ class Plan(Document):
     )
     status = StringField(
         default="active",
-        options=['active', 'locked'])
+        options=['active', 'locked', 'confirmed'])
     organizer = ReferenceField('User', required=True)  
     participants = ListField(ReferenceField('User'))
     name = StringField()
