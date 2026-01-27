@@ -5,6 +5,7 @@ from app.models import activity, message
 class PlanCosts(EmbeddedDocument):
     total = FloatField(default=0.0)
     per_person = FloatField(default=0.0)
+    collected = FloatField(default=0.0)
 
 class Plan(Document):
     type = StringField(
@@ -59,7 +60,8 @@ class Plan(Document):
             'deadline': self.deadline.isoformat() if self.deadline else None,
             'costs': {
                 'total': self.costs.total if self.costs else 0.0,
-                'per_person': self.costs.per_person if self.costs else 0.0
+                'per_person': self.costs.per_person if self.costs else 0.0,
+                'collected': self.costs.collected
             },
             'activities': [activity.to_dict() for activity in self.activities],
             'messages': [message.to_dict() for message in self.messages],

@@ -18,6 +18,7 @@ class Activity(EmbeddedDocument):
     proposer = ReferenceField("User", required=True)
     status = StringField(choices=["proposed", "confirmed", "rejected"], default="proposed")
     votes = ListField(ReferenceField("User"))
+    payments = ListField(ReferenceField("User"))
     country = StringField()
     state = StringField()
     city = StringField()
@@ -48,6 +49,7 @@ class Activity(EmbeddedDocument):
                 } 
                 for v in self.votes
             ],
+            "payments": [str(getattr(p, "id", None)) for p in self.payments],
             'country': self.country,
             'state': self.state,
             'city': self.city

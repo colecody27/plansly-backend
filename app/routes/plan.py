@@ -254,3 +254,18 @@ def lock_plan(plan_id):
         'data': plan.to_dict(),
         'msg': 'Plan locked succesfully'}), 204
 
+@plan_bp.route('/<plan_id>/pay', methods=['PUT'])
+@jwt_required()
+def pay(plan_id):
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized 
+
+    user = user_service.get_user(uid)
+    plan = plan_service.get_plan(plan_id, user)
+    plan = plan_service.pay(plan, user)
+
+    return jsonify({'success': True,
+        'data': plan.to_dict(),
+        'msg': 'Plan locked succesfully'}), 204
+

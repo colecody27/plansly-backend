@@ -251,6 +251,20 @@ def send_message(plan, user, message):
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return message
 
+def pay(plan, user):
+    if plan.status != 'locked':
+        raise UserNotAuthorized
+    
+    for act in plan.activities:
+        if user in act.votes and user not in act.payments:
+            plan.costs.collected += act.costs.per_person
+            act.payments.append(user)
+
+    try:
+        plan.save()
+    except Exception as e:
+        raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    return plan
 
 
 
