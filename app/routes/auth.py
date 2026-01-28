@@ -19,7 +19,7 @@ def login():
     if redirect_to:
         session['redirect_to'] = redirect_to
     return oauth.auth0.authorize_redirect(
-        redirect_uri="http://localhost:5173/api/auth/callback"
+        redirect_uri="http://127.0.0.1:5173/api/auth/callback"
     )
 
 @auth_bp.route("/callback", methods=["GET", "POST"])

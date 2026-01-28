@@ -44,7 +44,7 @@ def get_plans(user):
 def get_plan(plan_id, user=None):
     plan = Plan.objects(id=plan_id).first() 
     if not plan:
-        raise PlanNotFound
+        raise PlanNotFound(plan_id)
     if user:
         if plan.organizer != user and user not in plan.participants:
             raise UserNotAuthorized(user.id)
@@ -237,11 +237,8 @@ def is_overlapped(act_a, act_b):
     return False
 
 def send_message(plan, user, message):
-    if plan.status != 'active':
-        raise UserNotAuthorized
-    
     message = Message(
-        sender_id=user.id,
+        sender=user,
         text=message
     )
     plan.messages.append(message)
@@ -267,8 +264,16 @@ def pay(plan, user):
     return plan
 
 
-
-
+def is_member(plan_id, user_id):
+    plan = Plan.objects(id=plan_id).first()
+    if not plan:
+        return False
+    if user_id not in [str(p.id) for p in plan.participants] and user_id != str(plan.organizer.id):
+        print(f'user_id: {user_id}')
+        print(f'org_id: {str(plan.organizer.id)}')
+        print('this is false')
+        return False
+    return True
 
 
 

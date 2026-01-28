@@ -6,7 +6,7 @@ import os
 
 oauth = OAuth()
 jwt = JWTManager()
-socketio = SocketIO(cors_allowed_origins="*")
+socketio = SocketIO(cors_allowed_origins=["http://127.0.0.1:5173"])
 cache = redis.Redis(
     host=os.getenv("REDIS_HOST", "localhost"),
     port=6379,
