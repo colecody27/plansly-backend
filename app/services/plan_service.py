@@ -264,14 +264,11 @@ def pay(plan, user):
     return plan
 
 
-def is_member(plan_id, user_id):
+def is_member(plan_id, user):
     plan = Plan.objects(id=plan_id).first()
     if not plan:
         return False
-    if user_id not in [str(p.id) for p in plan.participants] and user_id != str(plan.organizer.id):
-        print(f'user_id: {user_id}')
-        print(f'org_id: {str(plan.organizer.id)}')
-        print('this is false')
+    if user not in plan.participants and user != plan.organizer:
         return False
     return True
 

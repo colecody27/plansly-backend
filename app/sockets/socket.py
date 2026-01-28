@@ -4,42 +4,44 @@ from flask_jwt_extended import decode_token, jwt_required, get_jwt_identity, ver
 from app.services import plan_service, user_service
 from app.errors import AppError, Unauthorized, Forbidden
 from app.extensions import socketio
+from collections import defaultdict
 
 MAX_MESSAGE_LENGTH = 2000
+active_users = defaultdict(set)
 
 @socketio.on("connect")
 def on_connect():
     try:
-        # token = request.cookies.get("plannit-token")
-        # if not token:
-        #     return False
-        # decoded = decode_token(token)
-        # user_id = decoded["sub"]
-
         verify_jwt_in_request(locations=["cookies"])
         user_id = get_jwt_identity()
-        print(f'user_id: {user_id}')
     except Exception as e:
         print("Socket auth failed:", repr(e), flush=True)
         raise ConnectionRefusedError("unauthorized")
 
     # Store identity for later events (per-socket), get's cleaned up on disconnects
     session['user_id'] = user_id
-    # join_room(f"plan:{plan_id}")
 
-@socketio.on("join_plan")
+@socketio.on("plan:join")
 def join_plan(data):
     try:
-        print('here!')
         uid = session.get('user_id')
         plan_id = data.get('plan_id')
-        is_member = plan_service.is_member(plan_id, uid)
-        if not is_member:
+        if not uid or not plan_id:
+            emit("auth:error", {"code": "unauthorized"})
+            return
+        user = user_service.get_user(uid)
+        if not plan_service.is_member(plan_id, user):
             emit("error", {"code": "forbidden"})
             return
 
         room = f"plan:{plan_id}"
-        join_room(room)
+        join_room(room) 
+
+        active_users[plan_id].add(uid)
+        session['plan_id'] = plan_id
+        emit('plan:users', {'msg': len(active_users[plan_id])}, room=room)
+        emit('plan:announcement', {'msg': f'{user.name} has joined the chat! 🤙'}, room=room)
+
     except Exception as e:
         emit("error", {
             "event": "join_plan",
@@ -47,12 +49,30 @@ def join_plan(data):
             "message": e.message
         })
 
-@socketio.on("leave_plan")
+@socketio.on("plan:leave")
 def leave_plan(data):
     try:
-        plan_id = data.get(plan_id)
+        uid = session.get('user_id')
+        plan_id = session.get('plan_id')
+        if not uid or not plan_id:
+            emit("auth:error", {"code": "unauthorized"})
+            return
+        
+        user = user_service.get_user(uid)
         room = f"plan:{plan_id}"
         leave_room(room)
+
+        active_users[plan_id].remove(uid)
+        if len(active_users[plan_id]) == 0:
+            emit('plan:users', {'msg': 0}, room=room)
+            del active_users[plan_id]
+        else:
+            emit('plan:users', {'msg': len(active_users[plan_id]) }, room=room)
+        if session.get('plan_id'): 
+            del session['plan_id']
+
+        emit('plan:announcement', {'msg': f'{user.name} has left the chat! 👋'}, room=room)
+
     except Exception as e:
         emit("error", {
             "event": "leave_plan",
@@ -60,7 +80,22 @@ def leave_plan(data):
             "message": e.message
         })
 
-@socketio.on("send_message")
+@socketio.on("disconnect")
+def on_disconnect():
+    user_id = session.get('user_id')
+    plan_id = session.get('plan_id')
+
+    if user_id and plan_id:
+        del session['plan_id']
+        del session['user_id']
+        active_users[plan_id].remove(user_id)
+        if len(active_users[plan_id]) == 0:
+            del active_users[plan_id]
+
+def broadcast_event(event_name, payload):
+    emit(event_name, )
+
+@socketio.on("plan:message:send")
 def send_message(data):
     try:
         uid = session.get('user_id')
@@ -68,7 +103,6 @@ def send_message(data):
             emit("error", {"code": "unauthorized"})
             return
         user = user_service.get_user(uid)
-        print('HERE')
 
         plan_id = data.get('plan_id')
         plan = plan_service.get_plan(plan_id, user)
@@ -79,12 +113,11 @@ def send_message(data):
             emit("error", {"code": "Message required"})
             return
         if len(msg) > MAX_MESSAGE_LENGTH:
-            print(len(msg))
             emit("error", {"code": "Message length too long"})
             return
 
         message = plan_service.send_message(plan, user, msg)
-        emit("new_message", message.to_dict(), room=room)
+        emit("plan:message:new", message.to_dict(), room=room)
     except AppError as e:
         emit("error", {
             "event": "send_message",
@@ -112,9 +145,3 @@ def socket_error_handler(e):
             "error": "server_error",
             "message": "Unexpected server error"
         })
-
-def current_user_id():
-    _id = socketio.server.environ.get(request.sid).get("user_id")
-    print(f"current user request_id: {request.sid}")
-    print(f"id: {_id}")
-    return _id
