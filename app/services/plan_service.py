@@ -9,7 +9,7 @@ import uuid
 from app.constants import PLAN_ALLOWED_FIELDS, ACTIVITY_ALLOWED_FIELDS
 from app.extensions import s3
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def create_plan(data, user):
@@ -286,26 +286,28 @@ def get_presign_url(user, data):
 
     if filesize > MAX_IMAGE_SIZE:
         raise ValidationError
-
+    
+    if filetype not in ALLOWED_FILE_TYPES:
+        raise ValidationError
 
     filename = filename.replace('/', '_').replace('\\', '_')
-    curr_date = datetime.now(tz='UTC')
+    curr_date = datetime.now(timezone.utc)
     year, month, day = curr_date.year, curr_date.month, curr_date.day
     expires_in = 60
     u_url_id = uuid.uuid4()
 
-    s3_key = f'/uploads/{year}/{month}/{day}/user/{str(user.id)}/{u_url_id}/{filename}'
+    s3_key = f'uploads/{year}/{month}/{day}/user/{str(user.id)}/{u_url_id}'
     
     pre_signed_url = s3.generate_presigned_url(
         ClientMethod='put_object',
         Params={
-            "bucket": BUCKET,
-            "key": s3_key,
-            "content_type": filetype
+            "Bucket": BUCKET,
+            "Key": s3_key,
+            "ContentType": filetype
         },
         ExpiresIn=expires_in
     )
-
+    print(f'Presigned URL: {pre_signed_url}')
     return pre_signed_url
 
 

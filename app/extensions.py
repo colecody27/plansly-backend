@@ -4,6 +4,8 @@ from flask_socketio import SocketIO
 import redis 
 import os
 import boto3
+from botocore.config import Config
+
 
 oauth = OAuth()
 jwt = JWTManager()
@@ -14,4 +16,4 @@ cache = redis.Redis(
     decode_responses=True,
 )
 aws_region = os.getenv("AWS_REGION_NAME")
-s3 = boto3.client("s3", region_name=aws_region)
+s3 = boto3.client("s3", region_name=aws_region, config=Config(signature_version="s3v4"))

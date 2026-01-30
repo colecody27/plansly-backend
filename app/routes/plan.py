@@ -95,7 +95,12 @@ def create_activity(plan_id):
 
     user = user_service.get_user(uid)
     
+    print(request.mimetype)     # should be application/json
+    print(request.data)         # raw body
+    print(request.is_json)      # True if JSON
+
     data = request.get_json()
+    print('here')
     normalize_args(ACTIVITY_ALLOWED_FIELDS, data)
     print(data)
     
@@ -289,4 +294,4 @@ def upload_image():
 
     return jsonify({'success': True,
         'data': pre_signed_url,
-        'msg': 'Pre-signed URL generated succesfully'}), 204
+        'msg': 'Pre-signed URL generated succesfully'}), 200
