@@ -9,7 +9,7 @@ from app.models.invitation import Invitation
 from app.extensions import oauth
 from app.services import user_service, plan_service, invitation_service
 from datetime import timedelta
-from app.constants import PLAN_ALLOWED_FIELDS, ACTIVITY_ALLOWED_FIELDS
+from app.constants import PLAN_ALLOWED_FIELDS, ACTIVITY_ALLOWED_FIELDS, IMAGE_ALLOWED_FIELDS
 from app.utils import normalize_args
 from app.errors import Unauthorized, InviteNotFound, InviteExpired
 
@@ -25,7 +25,7 @@ def create_plan():
     user = user_service.get_user(uid)
 
     data = request.get_json()
-    data = normalize_args(PLAN_ALLOWED_FIELDS, data)
+    normalize_args(PLAN_ALLOWED_FIELDS, data)
 
     plan = plan_service.create_plan(data, user)
 
@@ -73,7 +73,7 @@ def update_plan(plan_id):
     plan = plan_service.get_plan(plan_id, user)
 
     data = request.get_json()
-    data = normalize_args(PLAN_ALLOWED_FIELDS, data)
+    normalize_args(PLAN_ALLOWED_FIELDS, data)
 
     plan = plan_service.update_plan(plan, user, data)
 
@@ -96,7 +96,7 @@ def create_activity(plan_id):
     user = user_service.get_user(uid)
     
     data = request.get_json()
-    data = normalize_args(ACTIVITY_ALLOWED_FIELDS, data)
+    normalize_args(ACTIVITY_ALLOWED_FIELDS, data)
     print(data)
     
     plan = plan_service.get_plan(plan_id, user)
@@ -116,7 +116,7 @@ def update_activity(plan_id, activity_id):
     user = user_service.get_user(uid)
     plan = plan_service.get_plan(plan_id, user)
     data = request.get_json()
-    data = normalize_args(ACTIVITY_ALLOWED_FIELDS, data)
+    normalize_args(ACTIVITY_ALLOWED_FIELDS, data)
     activity = plan_service.get_activity(plan, activity_id)
     activity = plan_service.update_activity(plan, user, activity, data)
     
@@ -144,14 +144,18 @@ def delete_activity():
 @plan_bp.route('/<plan_id>/activity/<activity_id>/vote', methods=['POST', 'PUT'])
 @jwt_required()
 def vote_activity(plan_id, activity_id):
+    print('before uid')
     uid = get_jwt_identity()
     if not uid:
         raise Unauthorized 
 
     user = user_service.get_user(uid)
+    print('after user')
     plan = plan_service.get_plan(plan_id, user)
-    
+    print('after plan')
+
     activity = plan_service.vote_activity(plan, activity_id, user)
+    print('after activity')
     print(activity.to_dict())
     return jsonify({'success': True,
             'data': plan.to_dict(),
@@ -269,3 +273,20 @@ def pay(plan_id):
         'data': plan.to_dict(),
         'msg': 'Plan locked succesfully'}), 204
 
+
+@plan_bp.route('/upload/image', methods=['POST', 'PUT'])
+@jwt_required()
+def upload_image():
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized 
+
+    user = user_service.get_user(uid)
+
+    data = request.get_json()
+    normalize_args(IMAGE_ALLOWED_FIELDS, data)
+    pre_signed_url = plan_service.get_presign_url(user, data)
+
+    return jsonify({'success': True,
+        'data': pre_signed_url,
+        'msg': 'Pre-signed URL generated succesfully'}), 204

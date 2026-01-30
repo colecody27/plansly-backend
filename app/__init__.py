@@ -3,6 +3,12 @@ from flask import Flask
 from dotenv import find_dotenv, load_dotenv
 from os import environ as env
 from authlib.integrations.flask_client import OAuth
+
+# Load .env as early as possible so extensions init can read env vars
+ENV_FILE = find_dotenv()
+if ENV_FILE:
+    load_dotenv(ENV_FILE)
+
 from app.extensions import oauth, jwt, socketio
 from app.services.auth import Auth0JWTBearerTokenValidator
 from mongoengine import connect
@@ -14,7 +20,7 @@ from datetime import timedelta
 def create_app():
     app = Flask(__name__)
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=3)
-    app.config["JWT_TOKEN_LOCATION"] = ["cookies", "headers"]
+    app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"] # Order matters! 
     # init_app(app) # Logging
     # app.config.from_object(Config) # Environment configurations
     # db.init_app(app) # Connect database 
@@ -29,10 +35,6 @@ def create_app():
     app.register_blueprint(plan_bp)
     from app.routes.user import user_bp
     app.register_blueprint(user_bp)
-
-    ENV_FILE = find_dotenv()
-    if ENV_FILE:
-        load_dotenv(ENV_FILE)
 
     app.secret_key = env.get("AUTH0_SECRET_KEY")
 

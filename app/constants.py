@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 
 # TODO - Verify that costs are never negative 
 
@@ -38,4 +39,10 @@ ACTIVITY_ALLOWED_FIELDS={
     'country': str,
     'city': str,
     'state': str
+}
+
+IMAGE_ALLOWED_FIELDS={
+    'filename': str,
+    'filetype': str,
+    'filesize': float
 }

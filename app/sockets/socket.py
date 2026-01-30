@@ -117,6 +117,7 @@ def send_message(data):
             return
 
         message = plan_service.send_message(plan, user, msg)
+        print(message.to_dict())
         emit("plan:message:new", message.to_dict(), room=room)
     except AppError as e:
         emit("error", {

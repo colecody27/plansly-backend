@@ -75,8 +75,6 @@ def normalize_args(valid_params, args):
                     args[param] = cast_type(value)
             except Exception as e:
                 raise ValidationError("Invalid data", details={"exception": str(e)})
-    
-    return args
 
 def _naive_utc(dt):
     if dt is None:

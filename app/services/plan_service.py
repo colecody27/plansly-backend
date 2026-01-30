@@ -3,10 +3,13 @@ from app.models.plan import Plan
 from app.models.user import User
 from app.models.message import Message
 from app.models.activity import Activity, ActivityCost
-from app.errors import DatabaseError, PlanNotFound, UserNotAuthorized, ActivityNotFound, NotPlanOrganizer
+from app.errors import DatabaseError, PlanNotFound, UserNotAuthorized, ActivityNotFound, NotPlanOrganizer, ValidationError
 from mongoengine.queryset.visitor import Q
 import uuid
 from app.constants import PLAN_ALLOWED_FIELDS, ACTIVITY_ALLOWED_FIELDS
+from app.extensions import s3
+import os
+from datetime import datetime
 
 
 def create_plan(data, user):
@@ -272,5 +275,37 @@ def is_member(plan_id, user):
         return False
     return True
 
+BUCKET = os.environ["AWS_S3_BUCKET_NAME"]
+MAX_IMAGE_SIZE = 10 * 1024 * 1024
+ALLOWED_FILE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+def get_presign_url(user, data):
+    filename = data.get('filename')
+    filetype = data.get('filetype')
+    filesize = data.get('filesize')
+
+    if filesize > MAX_IMAGE_SIZE:
+        raise ValidationError
+
+
+    filename = filename.replace('/', '_').replace('\\', '_')
+    curr_date = datetime.now(tz='UTC')
+    year, month, day = curr_date.year, curr_date.month, curr_date.day
+    expires_in = 60
+    u_url_id = uuid.uuid4()
+
+    s3_key = f'/uploads/{year}/{month}/{day}/user/{str(user.id)}/{u_url_id}/{filename}'
+    
+    pre_signed_url = s3.generate_presigned_url(
+        ClientMethod='put_object',
+        Params={
+            "bucket": BUCKET,
+            "key": s3_key,
+            "content_type": filetype
+        },
+        ExpiresIn=expires_in
+    )
+
+    return pre_signed_url
 
 

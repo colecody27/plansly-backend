@@ -1,10 +1,10 @@
 from mongoengine import EmbeddedDocument, StringField, DateTimeField, ReferenceField
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Message(EmbeddedDocument):
     sender = ReferenceField('User', required=True) 
     text = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {

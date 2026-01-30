@@ -3,6 +3,7 @@ from flask_jwt_extended import JWTManager
 from flask_socketio import SocketIO
 import redis 
 import os
+import boto3
 
 oauth = OAuth()
 jwt = JWTManager()
@@ -12,3 +13,5 @@ cache = redis.Redis(
     port=6379,
     decode_responses=True,
 )
+aws_region = os.getenv("AWS_REGION_NAME")
+s3 = boto3.client("s3", region_name=aws_region)
