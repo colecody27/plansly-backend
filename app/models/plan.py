@@ -31,6 +31,8 @@ class Plan(Document):
     country = StringField()
     state = StringField()
     city = StringField()
+    uploaded_images = ListField(ReferenceField('Image'))
+    image = ReferenceField('Image')
     
     meta = {
         "indexes": ["organizer"]
@@ -71,5 +73,19 @@ class Plan(Document):
             'end_day': self.end_day.isoformat() if self.end_day else None,
             'country': self.country,
             'state': self.state,
-            'city': self.city
+            'city': self.city,
+            'images': {
+                'primary': {
+                    'id': str(getattr(self.image, 'id', None)),
+                    'key': getattr(self.image, 'key', None)    
+                }
+            }
+            #     'uploaded': [
+            #         {
+            #             'id': str(getattr(self.img, 'id', None)),
+            #             'key': getattr(self.img, 'key', None)    
+            #         }    
+            #         for img in self.uploaded_images
+            #     ]
+            # }
         }

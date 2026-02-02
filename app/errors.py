@@ -44,6 +44,13 @@ class UserNotFound(NotFound):
             details={'user_id': uid}
         )
 
+class ImageNotFound(NotFound):
+    def __init__(self, image_id):
+        super().__init__(
+            message=f'Image with ID "{image_id}" not found',
+            details={'image_id': image_id}
+        )
+
 class UserNotAuthorized(Forbidden):
     def __init__(self, uid):
         super().__init__(
@@ -85,4 +92,3 @@ class InviteExpired(Forbidden):
         msg = 'This invitation link has expired'
         details = {'expires_at': expires_at} if expires_at else None
         super().__init__(message=msg, details=details)
-

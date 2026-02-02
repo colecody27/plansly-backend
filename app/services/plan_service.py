@@ -1,4 +1,4 @@
-from app.services import invitation_service, user_service
+from app.services import invitation_service, user_service, image_service
 from app.models.plan import Plan
 from app.models.user import User
 from app.models.message import Message
@@ -13,6 +13,11 @@ from datetime import datetime, timezone
 
 
 def create_plan(data, user):
+    image_id = data.get('image_id')
+    if image_id:
+        image = image_service.get_image(image_id)
+    is_uploaded = getattr(image, 'uploaded_by', None) != None
+
     plan = Plan(
         name=data.get('name'),
         description=data.get('description'),
@@ -23,7 +28,9 @@ def create_plan(data, user):
         end_day=data.get('end_day'),
         country=data.get('country'),
         state=data.get('city'),
-        city=data.get('state')
+        city=data.get('state'), 
+        image=image_id,
+        uploaded_images=[image_id] if is_uploaded else []
     )
 
     try:
@@ -275,39 +282,5 @@ def is_member(plan_id, user):
         return False
     return True
 
-BUCKET = os.environ["AWS_S3_BUCKET_NAME"]
-MAX_IMAGE_SIZE = 10 * 1024 * 1024
-ALLOWED_FILE_TYPES = {"image/jpeg", "image/png", "image/webp"}
-
-def get_presign_url(user, data):
-    filename = data.get('filename')
-    filetype = data.get('filetype')
-    filesize = data.get('filesize')
-
-    if filesize > MAX_IMAGE_SIZE:
-        raise ValidationError
-    
-    if filetype not in ALLOWED_FILE_TYPES:
-        raise ValidationError
-
-    filename = filename.replace('/', '_').replace('\\', '_')
-    curr_date = datetime.now(timezone.utc)
-    year, month, day = curr_date.year, curr_date.month, curr_date.day
-    expires_in = 60
-    u_url_id = uuid.uuid4()
-
-    s3_key = f'uploads/{year}/{month}/{day}/user/{str(user.id)}/{u_url_id}'
-    
-    pre_signed_url = s3.generate_presigned_url(
-        ClientMethod='put_object',
-        Params={
-            "Bucket": BUCKET,
-            "Key": s3_key,
-            "ContentType": filetype
-        },
-        ExpiresIn=expires_in
-    )
-    print(f'Presigned URL: {pre_signed_url}')
-    return pre_signed_url
-
-
+def update_image():
+    pass

@@ -7,7 +7,7 @@ from app.models.user import User
 from app.models.plan import Plan
 from app.models.invitation import Invitation
 from app.extensions import oauth
-from app.services import user_service, plan_service, invitation_service
+from app.services import user_service, plan_service, invitation_service, image_service
 from datetime import timedelta
 from app.constants import PLAN_ALLOWED_FIELDS, ACTIVITY_ALLOWED_FIELDS, IMAGE_ALLOWED_FIELDS
 from app.utils import normalize_args
@@ -26,6 +26,7 @@ def create_plan():
 
     data = request.get_json()
     normalize_args(PLAN_ALLOWED_FIELDS, data)
+    print(data)
 
     plan = plan_service.create_plan(data, user)
 
@@ -43,8 +44,18 @@ def get_plan(plan_id):
     user = user_service.get_user(uid)
     plan = plan_service.get_plan(plan_id, user)
 
+    selected_url = image_service.get_download_url(str(plan.image.key))
+    # TODO - Implement method
+    uploaded_urls = image_service.get_download_urls(str(plan.image.key))
+
     return jsonify({'success': True,
-                    'data': plan.to_dict(),
+                    'data': {
+                        'plan': plan.to_dict(),   
+                        'image_urls': {
+                            'selected': selected_url,
+                            'uploaded': uploaded_urls
+                        }
+                    },
                     'msg': 'Plan retreived succesfully'}), 200
 
 @plan_bp.route('', methods=['GET'])
@@ -57,6 +68,10 @@ def get_plans():
     user = user_service.get_user(uid)
     plans = plan_service.get_plans(user)
     plans = [plan.to_dict() for plan in plans]
+    
+    for plan in plans:
+        download_url = image_service.get_download_url(plan['images']['primary']['key'])
+        plan['image_url'] = download_url
 
     return jsonify({'success': True,
                 'data': plans,
@@ -290,8 +305,26 @@ def upload_image():
 
     data = request.get_json()
     normalize_args(IMAGE_ALLOWED_FIELDS, data)
-    pre_signed_url = plan_service.get_presign_url(user, data)
+    pre_signed_url, image = image_service.get_upload_url(user, data)
 
     return jsonify({'success': True,
-        'data': pre_signed_url,
+        'data': {
+            'upload_url': pre_signed_url,
+            'image_id': str(image.id)
+        },
         'msg': 'Pre-signed URL generated succesfully'}), 200
+
+@plan_bp.route('/upload/image/<image_id>', methods=['POST', 'PUT'])
+@jwt_required()
+def image_uploaded(image_id):
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized 
+
+    user = user_service.get_user(uid)
+    image = image_service.get_image(image_id)
+    image_service.image_uploaded(image)
+
+    return jsonify({'success': True,
+        'data': '',
+        'msg': 'Pre-signed URL generated succesfully'}), 204

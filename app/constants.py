@@ -26,6 +26,7 @@ PLAN_ALLOWED_FIELDS={
     'state': str,
     'theme': str,
     'type': str,
+    'image_id': str
 }
 
 ACTIVITY_ALLOWED_FIELDS={
