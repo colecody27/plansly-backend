@@ -14,9 +14,6 @@ from datetime import datetime, timezone
 
 def create_plan(data, user):
     image_id = data.get('image_id')
-    if image_id:
-        image = image_service.get_image(image_id)
-    is_uploaded = getattr(image, 'uploaded_by', None) != None
 
     plan = Plan(
         name=data.get('name'),
@@ -29,8 +26,9 @@ def create_plan(data, user):
         country=data.get('country'),
         state=data.get('city'),
         city=data.get('state'), 
-        image=image_id,
-        uploaded_images=[image_id] if is_uploaded else []
+        image=image_service.get_image(image_id) if image_id else None,
+        stock_image=data.get('image_key'),
+        uploaded_images=[image_id] if image_id else []
     )
 
     try:

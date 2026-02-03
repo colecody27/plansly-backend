@@ -33,6 +33,7 @@ class Plan(Document):
     city = StringField()
     uploaded_images = ListField(ReferenceField('Image'))
     image = ReferenceField('Image')
+    stock_image = StringField()
     
     meta = {
         "indexes": ["organizer"]
@@ -78,7 +79,8 @@ class Plan(Document):
                 'primary': {
                     'id': str(getattr(self.image, 'id', None)),
                     'key': getattr(self.image, 'key', None)    
-                }
+                },
+                'stock': self.stock_image
             }
             #     'uploaded': [
             #         {

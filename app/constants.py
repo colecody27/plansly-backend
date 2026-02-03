@@ -26,7 +26,8 @@ PLAN_ALLOWED_FIELDS={
     'state': str,
     'theme': str,
     'type': str,
-    'image_id': str
+    'image_id': str,
+    'image_key': str,
 }
 
 ACTIVITY_ALLOWED_FIELDS={
@@ -46,4 +47,12 @@ IMAGE_ALLOWED_FIELDS={
     'filename': str,
     'filetype': str,
     'filesize': float
+}
+
+AWS_S3_URL='https://plannit-s3-test-bucket.s3.us-west-1.amazonaws.com/stock'
+S3_STOCK_IMAGE_URLS = {
+    'abstract': [f'{AWS_S3_URL}/abstract/abstract{i}.jpg' for i in range(1, 8)],
+    'adventure': [f"{AWS_S3_URL}/adventure/travel{i}.jpg" for i in range(1, 10)],
+    'social': [f'{AWS_S3_URL}/social/social{i}.jpg' for i in range(1, 5)],
+    'food': [f'{AWS_S3_URL}/food/dinner{n}.jpg' for n in range(1, 10)],
 }

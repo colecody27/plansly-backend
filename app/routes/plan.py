@@ -9,7 +9,7 @@ from app.models.invitation import Invitation
 from app.extensions import oauth
 from app.services import user_service, plan_service, invitation_service, image_service
 from datetime import timedelta
-from app.constants import PLAN_ALLOWED_FIELDS, ACTIVITY_ALLOWED_FIELDS, IMAGE_ALLOWED_FIELDS
+from app.constants import PLAN_ALLOWED_FIELDS, ACTIVITY_ALLOWED_FIELDS, IMAGE_ALLOWED_FIELDS, S3_STOCK_IMAGE_URLS, AWS_S3_URL
 from app.utils import normalize_args
 from app.errors import Unauthorized, InviteNotFound, InviteExpired
 
@@ -25,6 +25,7 @@ def create_plan():
     user = user_service.get_user(uid)
 
     data = request.get_json()
+    print(data)
     normalize_args(PLAN_ALLOWED_FIELDS, data)
     print(data)
 
@@ -43,10 +44,12 @@ def get_plan(plan_id):
 
     user = user_service.get_user(uid)
     plan = plan_service.get_plan(plan_id, user)
-
-    selected_url = image_service.get_download_url(str(plan.image.key))
-    # TODO - Implement method
-    uploaded_urls = image_service.get_download_urls(str(plan.image.key))
+    if plan.image:
+        selected_url = image_service.get_download_url(str(plan.image.key))
+        uploaded_urls = image_service.get_download_urls(str(plan.image.key)) # TODO - Implement
+    else:
+        selected_url = f'{AWS_S3_URL}/{plan.stock_image}'
+        uploaded_urls = []
 
     return jsonify({'success': True,
                     'data': {
@@ -70,7 +73,10 @@ def get_plans():
     plans = [plan.to_dict() for plan in plans]
     
     for plan in plans:
-        download_url = image_service.get_download_url(plan['images']['primary']['key'])
+        if plan.get('images').get('stock'):
+            download_url = f"{AWS_S3_URL}/{plan['images']['stock']}"
+        else:
+            download_url = image_service.get_download_url(plan['images']['primary']['key'])
         plan['image_url'] = download_url
 
     return jsonify({'success': True,
@@ -327,4 +333,17 @@ def image_uploaded(image_id):
 
     return jsonify({'success': True,
         'data': '',
-        'msg': 'Pre-signed URL generated succesfully'}), 204
+        'msg': 'Image state updated succesfully'}), 204
+
+@plan_bp.route('/stock/images', methods=['GET'])
+@jwt_required()
+def get_stock_images():
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized 
+
+    user = user_service.get_user(uid)
+   
+    return jsonify({'success': True,
+        'data': S3_STOCK_IMAGE_URLS,
+        'msg': 'Stock image urls retreived successfully'}), 200
