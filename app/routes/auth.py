@@ -20,7 +20,7 @@ def login():
     if redirect_to:
         session['redirect_to'] = redirect_to
     return oauth.auth0.authorize_redirect(
-        redirect_uri=environ['FRONTEND_URL']
+        redirect_uri=f"{environ['FRONTEND_URL']}/api/auth/callback"
     )
 
 @auth_bp.route("/callback", methods=["GET", "POST"])
