@@ -15,6 +15,7 @@ Flask==3.1.2
 Flask-JWT-Extended==4.7.1
 Flask-SocketIO==5.6.0
 greenlet==3.3.1
+gunicorn==25.0.1
 h11==0.16.0
 idna==3.11
 iniconfig==2.3.0
