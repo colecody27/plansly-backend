@@ -20,12 +20,12 @@ def login():
     if redirect_to:
         session['redirect_to'] = redirect_to
     return oauth.auth0.authorize_redirect(
-        redirect_uri=f"{environ['FRONTEND_URL']}/api/auth/callback"
+        redirect_uri=f"{environ['BACKEND_URL']}/auth/callback"
     )
 
 @auth_bp.route("/callback", methods=["GET", "POST"])
 def callback():
-    redirect_to = session.pop('redirect_to', '/dashboard')
+    redirect_to = session.pop('redirect_to', f'{environ['FRONTEND_URL']}/dashboard')
     token = oauth.auth0.authorize_access_token()
     id_token = token.get("id_token")
     if not id_token:
@@ -45,11 +45,19 @@ def callback():
         user = user_service.create_user(claims)
 
     app_token = create_access_token(identity=str(user.id), expires_delta=timedelta(minutes=60))
-    return jsonify({'success': True,
-        'data': '',
-        'redirect': redirect_to,
-        'token': app_token,
-        'msg': 'Invite accepted succesfully'}), 200
+    resp = redirect(redirect_to)
+
+    resp.set_cookie(
+        "access_token_cookie",
+        app_token,
+        httponly=True,
+        secure=(environ["ENV"]== "production"),
+        samesite='lax',  
+        max_age=60 * 60,
+        path="/",
+    )
+
+    return resp
 
 @auth_bp.route("/")
 def home():

@@ -3,6 +3,7 @@ from flask import Flask
 from dotenv import find_dotenv, load_dotenv
 from os import environ as env
 from authlib.integrations.flask_client import OAuth
+from flask_cors import CORS
 
 # Load .env as early as possible so extensions init can read env vars
 ENV_FILE = find_dotenv()
@@ -21,6 +22,11 @@ def create_app():
     app = Flask(__name__)
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=3)
     app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"] # Order matters! 
+    CORS(
+        app,
+        resources={r"/*": {"origins": [env.get('FRONTEND_URL')]}},
+        supports_credentials=True,  
+    )
     # init_app(app) # Logging
     # app.config.from_object(Config) # Environment configurations
     # db.init_app(app) # Connect database 
