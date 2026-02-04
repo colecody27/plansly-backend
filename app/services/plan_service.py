@@ -82,7 +82,14 @@ def update_plan(plan, user, data):
     
     for field in PLAN_ALLOWED_FIELDS.keys():
         if field in data:
-            setattr(plan, field, data[field])
+            if field == 'image_key':
+                setattr(plan, 'image', None)    
+                setattr(plan, 'stock_image', data[field])    
+            if field == 'image_id': # TODO - Update with image service logic
+                setattr(plan, 'stock_image', None)
+                setattr(plan, 'image', data[field])        
+            else:
+                setattr(plan, field, data[field])
 
     try:    
         plan.save()
@@ -280,5 +287,12 @@ def is_member(plan_id, user):
         return False
     return True
 
-def update_image():
-    pass
+def update_image(plan, image):
+    plan.image = image
+    plan.stock_image = None
+
+    try:
+        plan.save()
+    except Exception as e:
+        raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    return plan

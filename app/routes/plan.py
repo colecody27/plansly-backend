@@ -95,6 +95,7 @@ def update_plan(plan_id):
 
     data = request.get_json()
     normalize_args(PLAN_ALLOWED_FIELDS, data)
+    print(data)
 
     plan = plan_service.update_plan(plan, user, data)
 
@@ -327,9 +328,16 @@ def image_uploaded(image_id):
     if not uid:
         raise Unauthorized 
 
+    data = request.get_json()
+    plan_id = data.get('plan_id')
+    if plan_id:
+        plan = plan_service.get_plan(plan_id)
+
     user = user_service.get_user(uid)
     image = image_service.get_image(image_id)
     image_service.image_uploaded(image)
+    if plan:
+        plan_service.update_image(plan, image)
 
     return jsonify({'success': True,
         'data': '',
