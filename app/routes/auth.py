@@ -9,6 +9,7 @@ from app.services import user_service
 from app.errors import ValidationError
 from datetime import timedelta
 import secrets
+from os import environ
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -19,7 +20,7 @@ def login():
     if redirect_to:
         session['redirect_to'] = redirect_to
     return oauth.auth0.authorize_redirect(
-        redirect_uri="http://127.0.0.1:5173/api/auth/callback"
+        redirect_uri=environ['FRONTEND_URL']
     )
 
 @auth_bp.route("/callback", methods=["GET", "POST"])
