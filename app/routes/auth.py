@@ -52,7 +52,7 @@ def callback():
         app_token,
         httponly=True,
         secure=(environ["ENV"]== "production"),
-        samesite=None,  
+        samesite="None",  
         max_age=60 * 60,
         path="/",
     )
