@@ -52,7 +52,8 @@ def callback():
         app_token,
         httponly=True,
         secure=(environ["ENV"]== "production"),
-        samesite='None' if environ["ENV"]== "production" else 'Lax',  
+        samesite='Lax',
+        domain='.plansly.co' if environ["ENV"]== "production" else None,  
         max_age=60 * 60,
         path="/",
     )
