@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, url_for, session, redirect, render_template, abort, current_app
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, set_access_cookies
 import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
@@ -15,7 +15,6 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @auth_bp.route("/login")
 def login():
-    session.permanent = True
     redirect_to = request.args.get('redirect_to')
     if redirect_to:
         session['redirect_to'] = redirect_to
@@ -47,16 +46,7 @@ def callback():
     app_token = create_access_token(identity=str(user.id), expires_delta=timedelta(minutes=60))
     resp = redirect(redirect_to)
 
-    resp.set_cookie(
-        "access_token_cookie",
-        app_token,
-        httponly=True,
-        secure=(environ["ENV"]== "production"),
-        samesite='Lax',
-        domain='.plansly.co' if environ["ENV"]== "production" else None,  
-        max_age=60 * 60,
-        path="/",
-    )
+    set_access_cookies(resp, app_token)
 
     return resp
 

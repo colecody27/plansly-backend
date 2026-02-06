@@ -20,17 +20,19 @@ from datetime import timedelta
 
 def create_app():
     app = Flask(__name__)
-    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=3)
-    app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"] # Order matters! 
+    app.config.update(
+        JWT_TOKEN_LOCATION=["headers", "cookies"],
+        JWT_COOKIE_SECURE=(env.get('ENV') == "production"),
+        JWT_COOKIE_SAMESITE="Lax",
+        JWT_COOKIE_CSRF_PROTECT=True,
+    )
     CORS(
         app,
         resources={r"/*": {"origins": [env.get('FRONTEND_URL')]}},
         supports_credentials=True,  
     )
+
     # init_app(app) # Logging
-    # app.config.from_object(Config) # Environment configurations
-    # db.init_app(app) # Connect database 
-    # jwt.init_app(app) # Connect JWT
     socketio.init_app(app)
     from app.sockets import socket
 
