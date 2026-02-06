@@ -20,11 +20,13 @@ from datetime import timedelta
 
 def create_app():
     app = Flask(__name__)
+    is_prod = env.get('ENV') == 'production'
     app.config.update(
         JWT_TOKEN_LOCATION=["headers", "cookies"],
-        JWT_COOKIE_SECURE=(env.get('ENV') == "production"),
+        JWT_COOKIE_SECURE=is_prod,
         JWT_COOKIE_SAMESITE="Lax",
         JWT_COOKIE_CSRF_PROTECT=True,
+        JWT_COOKIE_DOMAIN=".plansly.co" if is_prod else None,
     )
     CORS(
         app,
