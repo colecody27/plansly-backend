@@ -224,15 +224,25 @@ def get_invite(plan_id):
 @plan_bp.route('/<plan_id>/invite/<invite_id>', methods=['GET'])
 def verify_invite(plan_id, invite_id):
     plan = plan_service.get_plan(plan_id)
-    print(plan)
     is_valid = invitation_service.valid_invite(plan, invite_id)
     if not is_valid:
         raise InviteExpired
     
-    # plan_overview = plan_service.serialize_plan(plan.to_dict()) # TODO - Add serialization overview
+    if plan.image:
+        selected_url = image_service.get_download_url(str(plan.image.key))
+        uploaded_urls = image_service.get_download_urls(str(plan.image.key)) # TODO - Implement
+    else:
+        selected_url = f'{AWS_S3_URL}/{plan.stock_image}'
+        uploaded_urls = []
     return jsonify({'success': True,
-        'data': plan.to_dict(),
-        'msg': 'Invitation retreived succesfully'}), 200
+                'data': {
+                    'plan': plan.to_dict(),   
+                    'image_urls': {
+                        'selected': selected_url,
+                        'uploaded': uploaded_urls
+                    }
+                },
+                'msg': 'Invitation retreived succesfully'}), 200
 
 @plan_bp.route('/<plan_id>/invite/<invite_id>/accept', methods=['POST'])
 @jwt_required()
