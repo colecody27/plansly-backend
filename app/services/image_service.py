@@ -4,10 +4,13 @@ from datetime import datetime, timezone
 import uuid
 from app.extensions import s3
 from app.models.image import Image
+from app.logger import get_logger
 
 BUCKET = os.environ["AWS_S3_BUCKET_NAME"]
 MAX_IMAGE_SIZE = 10 * 1024 * 1024
 ALLOWED_FILE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+logger = get_logger(__name__)
 
 def get_upload_url(user, data):
     filename = data.get('filename')
@@ -15,9 +18,11 @@ def get_upload_url(user, data):
     filesize = data.get('filesize')
 
     if filesize > MAX_IMAGE_SIZE:
+        logger.warning("get_upload_url file too large user_id=%s size=%s", user.id, filesize)
         raise ValidationError
     
     if filetype not in ALLOWED_FILE_TYPES:
+        logger.warning("get_upload_url invalid filetype user_id=%s filetype=%s", user.id, filetype)
         raise ValidationError
 
     filename = filename.replace('/', '_').replace('\\', '_')
@@ -39,7 +44,6 @@ def get_upload_url(user, data):
         },
         ExpiresIn=expires_in
     )
-    print(f'Presigned URL: {pre_signed_url}')
     return pre_signed_url, image
 
 def create_image(user, name, type, size, key):
@@ -53,6 +57,7 @@ def create_image(user, name, type, size, key):
     try:
         image.save()
     except Exception as e:
+        logger.exception("create_image save failed user_id=%s key=%s error=%s", user.id, key, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     
     return image
@@ -61,6 +66,7 @@ def get_image(id, plan=None):
     try:
         image = Image.objects(id=id).first()
     except Exception as e:
+        logger.exception("get_image lookup failed image_id=%s error=%s", id, str(e))
         raise ImageNotFound
     return image
 
@@ -70,6 +76,7 @@ def image_uploaded(image):
     try:
         image.save()
     except Exception as e:
+        logger.exception("image_uploaded save failed image_id=%s error=%s", image.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
 
 
@@ -82,7 +89,6 @@ def get_download_url(key):
         },
         ExpiresIn=60
     )
-    print(f'Presigned URL: {pre_signed_url}')
     return pre_signed_url
 
 def get_download_urls(image):
@@ -95,6 +101,4 @@ def get_download_urls(image):
         },
         ExpiresIn=60
     )
-    print(f'Presigned URL: {pre_signed_url}')
     return pre_signed_url, image
-

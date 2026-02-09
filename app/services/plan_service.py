@@ -10,10 +10,13 @@ from app.constants import PLAN_ALLOWED_FIELDS, ACTIVITY_ALLOWED_FIELDS
 from app.extensions import s3
 import os
 from datetime import datetime, timezone
+from app.logger import get_logger
 
+logger = get_logger(__name__)
 
 def create_plan(data, user):
     image_id = data.get('image_id')
+    logger.info("create_plan user_id=%s image_id=%s", user.id, image_id)
 
     plan = Plan(
         name=data.get('name'),
@@ -36,14 +39,16 @@ def create_plan(data, user):
         plan.save()
         user.save()
     except Exception as e:
-        print(str(e))
+        logger.exception("create_plan initial save failed user_id=%s error=%s", user.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     plan.invitation = invitation_service.create_invite(plan.id)
 
     try:
         plan.save()
     except Exception as e:
+        logger.exception("create_plan invite save failed plan_id=%s error=%s", plan.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    logger.info("create_plan created plan_id=%s organizer_id=%s", plan.id, user.id)
     return plan
 
 def get_plans(user):
@@ -54,6 +59,7 @@ def get_plans(user):
 def get_plan(plan_id, user=None):
     plan = Plan.objects(id=plan_id).first() 
     if not plan:
+        logger.warning("get_plan not found plan_id=%s", plan_id)
         raise PlanNotFound(plan_id)
     if user:
         if plan.organizer != user and user not in plan.participants:
@@ -75,6 +81,7 @@ def lock_plan(plan, user):
     try:    
         plan.save()
     except Exception as e:
+        logger.exception("lock_plan save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return plan
 
@@ -96,6 +103,7 @@ def update_plan(plan, user, data):
     try:    
         plan.save()
     except Exception as e:
+        logger.exception("update_plan save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return plan
 
@@ -119,6 +127,7 @@ def create_activity(plan, proposer, data):
     try:
         plan.save()
     except Exception as e:
+        logger.exception("create_activity save failed plan_id=%s error=%s", plan.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return activity
 
@@ -133,6 +142,12 @@ def update_activity(plan, user, activity, data):
     try:
         plan.save()
     except Exception as e:
+        logger.exception(
+            "update_activity save failed plan_id=%s activity_id=%s error=%s",
+            plan.id,
+            activity.activity_id,
+            str(e),
+        )
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return activity
 
@@ -178,7 +193,7 @@ def lock_activity(plan, activity_id, user=None):
     try:
         plan.save()
     except Exception as e:
-        print(str(e))
+        logger.exception("lock_activity save failed plan_id=%s activity_id=%s error=%s", plan.id, activity_id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return activity
 
@@ -187,6 +202,7 @@ def add_participant(plan, user):
     try:
         plan.save()
     except Exception as e:
+        logger.exception("add_participant save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return plan
 
@@ -198,6 +214,12 @@ def remove_participant(plan, organizer_id, participant_id):
     try:
         plan.save()
     except Exception as e:
+        logger.exception(
+            "remove_participant save failed plan_id=%s participant_id=%s error=%s",
+            plan.id,
+            participant_id,
+            str(e),
+        )
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return plan
 
@@ -231,6 +253,7 @@ def vote_activity(plan, activity_id, user):
         else:
             plan.save()
     except Exception as e:
+        logger.exception("vote_activity save failed plan_id=%s activity_id=%s error=%s", plan.id, activity_id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return activity
 
@@ -267,6 +290,7 @@ def send_message(plan, user, message):
     try:
         plan.save()
     except Exception as e:
+        logger.exception("send_message save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return message
 
@@ -282,6 +306,7 @@ def pay(plan, user):
     try:
         plan.save()
     except Exception as e:
+        logger.exception("pay save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return plan
 
@@ -301,5 +326,6 @@ def update_image(plan, image):
     try:
         plan.save()
     except Exception as e:
+        logger.exception("update_image save failed plan_id=%s image_id=%s error=%s", plan.id, image.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return plan

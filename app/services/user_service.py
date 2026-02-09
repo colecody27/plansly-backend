@@ -1,6 +1,9 @@
 from app.models.user import User
 from app.errors import UserNotFound, DatabaseError
 from app.constants import USER_ALLOWED_FIELDS
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 def create_user(claims):
     user = User(
@@ -13,6 +16,7 @@ def create_user(claims):
     try:
         user.save()
     except Exception as e:
+        logger.exception("create_user save failed auth0_id=%s error=%s", user.auth0_id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return user
 
@@ -25,6 +29,7 @@ def sync_user(user, claims):
     try:
         user.save()
     except Exception as e:
+        logger.exception("sync_user save failed user_id=%s error=%s", user.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return {'success': user}
 
@@ -35,12 +40,14 @@ def update_user(user, data):
     try:
         user.save()
     except Exception as e:
+        logger.exception("update_user save failed user_id=%s error=%s", user.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return user
 
 def get_user(uid):
     user = User.objects(id=uid).first()
     if not user:
+        logger.warning("get_user not found user_id=%s", uid)
         raise UserNotFound(uid)
     return user
 
@@ -63,6 +70,7 @@ def add_plan(plan, user):
     try:
         user.save()
     except Exception as e:
+        logger.exception("add_plan save failed user_id=%s plan_id=%s error=%s", user.id, plan.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return user
 
@@ -77,6 +85,7 @@ def add_mutuals(plan, user):
         User.objects(id=user.id).update(add_to_set__mutuals=everyone)
 
     except Exception as e:
+        logger.exception("add_mutuals failed user_id=%s plan_id=%s error=%s", user.id, plan.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return user
 
@@ -90,5 +99,6 @@ def remove_plan(plan, user):
     try:
         user.save()
     except Exception as e:
+        logger.exception("remove_plan save failed user_id=%s plan_id=%s error=%s", user.id, plan.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return user

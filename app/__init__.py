@@ -14,6 +14,7 @@ from app.extensions import oauth, jwt, socketio
 from app.services.auth import Auth0JWTBearerTokenValidator
 from mongoengine import connect
 from app.errors import AppError
+from app.logger import init_app
 from datetime import timedelta
 # from app.logger import init_app
 # from app.config import Config
@@ -34,7 +35,7 @@ def create_app():
         supports_credentials=True,  
     )
 
-    # init_app(app) # Logging
+    init_app(app)
     socketio.init_app(app)
     from app.sockets import socket
 
@@ -55,6 +56,12 @@ def create_app():
 
     @app.errorhandler(AppError)
     def handle_app_error(err):
+        app.logger.warning(
+            "app_error code=%s status=%s message=%s",
+            err.error_code,
+            err.status_code,
+            err.message,
+        )
         response = {
             "error": err.error_code,
             "message": err.message,

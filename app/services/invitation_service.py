@@ -4,9 +4,11 @@ from app.services import plan_service, user_service
 from datetime import timezone, datetime, timedelta
 from app.errors import DatabaseError, InviteNotFound, NotPlanOrganizer, UserNotAuthorized
 from app.utils import _naive_utc
+from app.logger import get_logger
 
 LINK_VALIDITY = timedelta(days=3)
 
+logger = get_logger(__name__)
 
 
 def create_invite(plan_id):
@@ -23,7 +25,9 @@ def create_invite(plan_id):
     try:
         invite.save()
     except Exception as e:
+        logger.exception("create_invite save failed plan_id=%s error=%s", plan_id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    logger.info("create_invite created plan_id=%s invite_id=%s", plan_id, invite.id)
     return invite
 
 def get_invite(plan, user):
@@ -41,6 +45,7 @@ def get_invite(plan, user):
         try:
             plan.save()
         except Exception as e:
+            logger.exception("get_invite save failed plan_id=%s error=%s", plan.id, str(e))
             raise DatabaseError("Unexpected database error", details={"exception": str(e)})
 
     return invite
@@ -63,10 +68,12 @@ def valid_invite(plan, invite_id):
     
 def accept_invite(plan, user):
     if user in plan.participants or user == plan.organizer:
+        logger.info("accept_invite skipped user_id=%s plan_id=%s", user.id, plan.id)
         return plan
     
     invite = Invitation.objects(id=str(plan.invitation.id)).first()
     if not invite:
+        logger.warning("accept_invite invite not found plan_id=%s", plan.id)
         raise InviteNotFound
     invite.uses += 1
 
@@ -77,8 +84,10 @@ def accept_invite(plan, user):
     try:
         invite.save()
     except Exception as e:
+        logger.exception("accept_invite save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     
+    logger.info("accept_invite success plan_id=%s user_id=%s", plan.id, user.id)
     return plan
 
 def expire_invite(invite):
@@ -86,6 +95,6 @@ def expire_invite(invite):
     try:
         invite.save()
     except Exception as e:
+        logger.exception("expire_invite save failed invite_id=%s error=%s", invite.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return {'success'}
-

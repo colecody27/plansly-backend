@@ -25,9 +25,7 @@ def create_plan():
     user = user_service.get_user(uid)
 
     data = request.get_json()
-    print(data)
     normalize_args(PLAN_ALLOWED_FIELDS, data)
-    print(data)
 
     plan = plan_service.create_plan(data, user)
 
@@ -95,7 +93,6 @@ def update_plan(plan_id):
 
     data = request.get_json()
     normalize_args(PLAN_ALLOWED_FIELDS, data)
-    print(data)
 
     plan = plan_service.update_plan(plan, user, data)
 
@@ -114,17 +111,12 @@ def create_activity(plan_id):
     uid = get_jwt_identity()
     if not uid:
         raise Unauthorized 
+    current_app.logger.info("create_activity request user_id=%s plan_id=%s", uid, plan_id)
 
     user = user_service.get_user(uid)
     
-    print(request.mimetype)     # should be application/json
-    print(request.data)         # raw body
-    print(request.is_json)      # True if JSON
-
     data = request.get_json()
-    print('here')
     normalize_args(ACTIVITY_ALLOWED_FIELDS, data)
-    print(data)
     
     plan = plan_service.get_plan(plan_id, user)
     activity = plan_service.create_activity(plan, user, data)
@@ -154,19 +146,20 @@ def update_activity(plan_id, activity_id):
 @plan_bp.route('/<plan_id>/activity/<activity_id>/vote', methods=['POST', 'PUT'])
 @jwt_required()
 def vote_activity(plan_id, activity_id):
-    print('before uid')
     uid = get_jwt_identity()
     if not uid:
         raise Unauthorized 
+    current_app.logger.info(
+        "vote_activity request user_id=%s plan_id=%s activity_id=%s",
+        uid,
+        plan_id,
+        activity_id,
+    )
 
     user = user_service.get_user(uid)
-    print('after user')
     plan = plan_service.get_plan(plan_id, user)
-    print('after plan')
 
     activity = plan_service.vote_activity(plan, activity_id, user)
-    print('after activity')
-    print(activity.to_dict())
     return jsonify({'success': True,
             'data': plan.to_dict(),
             'msg': 'Activity has been voted for succesfully'}), 200
@@ -233,6 +226,12 @@ def accept_invite(plan_id, invite_id):
     uid = get_jwt_identity()
     if not uid:
         raise Unauthorized 
+    current_app.logger.info(
+        "accept_invite request user_id=%s plan_id=%s invite_id=%s",
+        uid,
+        plan_id,
+        invite_id,
+    )
 
     user = user_service.get_user(uid)
     plan = plan_service.get_plan(plan_id)
@@ -284,6 +283,7 @@ def pay(plan_id):
     uid = get_jwt_identity()
     if not uid:
         raise Unauthorized 
+    current_app.logger.info("pay request user_id=%s plan_id=%s", uid, plan_id)
 
     user = user_service.get_user(uid)
     plan = plan_service.get_plan(plan_id, user)
