@@ -82,12 +82,4 @@ class Plan(Document):
                 },
                 'stock': self.stock_image
             }
-            #     'uploaded': [
-            #         {
-            #             'id': str(getattr(self.img, 'id', None)),
-            #             'key': getattr(self.img, 'key', None)    
-            #         }    
-            #         for img in self.uploaded_images
-            #     ]
-            # }
         }

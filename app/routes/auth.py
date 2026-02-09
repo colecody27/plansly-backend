@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, url_for, session, redirect, render_template, abort, current_app
-from flask_jwt_extended import create_access_token, set_access_cookies
+from flask_jwt_extended import create_access_token, set_access_cookies, unset_access_cookies
 import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
@@ -9,7 +9,6 @@ from app.services import user_service
 from app.errors import ValidationError
 from datetime import timedelta
 import secrets
-from os import environ
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -19,12 +18,12 @@ def login():
     if redirect_to:
         session['redirect_to'] = redirect_to
     return oauth.auth0.authorize_redirect(
-        redirect_uri=f"{environ['BACKEND_URL']}/auth/callback"
+        redirect_uri=f"{env.get('BACKEND_URL')}/auth/callback"
     )
 
 @auth_bp.route("/callback", methods=["GET", "POST"])
 def callback():
-    redirect_to = session.pop('redirect_to', f'{environ['FRONTEND_URL']}/dashboard')
+    redirect_to = session.pop('redirect_to', f'{env.get('FRONTEND_URL')}/dashboard')
     token = oauth.auth0.authorize_access_token()
     id_token = token.get("id_token")
     if not id_token:
@@ -54,16 +53,9 @@ def callback():
 def home():
     return render_template("home.html", session=session.get('user'), pretty=json.dumps(session.get('user'), indent=4))
 
-@auth_bp.route("/logout")
+@auth_bp.route("/logout", methods=['GET'])
 def logout():
-    return redirect(
-        "https://" + env.get("AUTH0_DOMAIN")
-        + "/v2/logout?"
-        + urlencode(
-            {
-                "returnTo": url_for("auth.home", _external=True),
-                "client_id": env.get("AUTH0_CLIENT_ID"),
-            },
-            quote_via=quote_plus,
-        )
-    )
+    resp = redirect(env.get('FRONTEND_URL'))
+    unset_access_cookies(resp)
+
+    return resp

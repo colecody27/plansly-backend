@@ -66,6 +66,20 @@ def add_plan(plan, user):
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return user
 
+def add_mutuals(plan, user):
+    try:
+        everyone = set([p for p in plan.participants])
+        everyone.add(plan.organizer)
+        if user in everyone:
+            everyone.remove(user)
+
+        User.objects(id__in=[str(p.id) for p in everyone]).update(add_to_set__mutuals=user)
+        User.objects(id=user.id).update(add_to_set__mutuals=everyone)
+
+    except Exception as e:
+        raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    return user
+
 def remove_plan(plan, user):
     if plan.organizer_id != user.id:
         user.participant_count -= 1

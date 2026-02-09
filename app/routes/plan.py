@@ -151,23 +151,6 @@ def update_activity(plan_id, activity_id):
         'data': activity.to_dict(),
         'msg': 'Activity created succesfully'}), 200
 
-# Activities are embedded in plans so shouldn't be needed
-@plan_bp.route('/<plan_id>/activity/<activity_id>', methods=['GET'])
-@jwt_required()
-def get_activity():
-    pass 
-
-# Activities are embedded in plans so shouldn't be needed
-@plan_bp.route('/<plan_id>/activity', methods=['GET'])
-@jwt_required()
-def get_activies():
-    pass
-
-@plan_bp.route('/<plan_id>/activity/<activity_id>', methods=['DELETE'])
-@jwt_required()
-def delete_activity():
-    pass
-
 @plan_bp.route('/<plan_id>/activity/<activity_id>/vote', methods=['POST', 'PUT'])
 @jwt_required()
 def vote_activity(plan_id, activity_id):

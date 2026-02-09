@@ -64,13 +64,15 @@ def valid_invite(plan, invite_id):
 def accept_invite(plan, user):
     if user in plan.participants or user == plan.organizer:
         return plan
-    plan_service.add_participant(plan, user)
-    user_service.add_plan(plan, user)
-
+    
     invite = Invitation.objects(id=str(plan.invitation.id)).first()
     if not invite:
         raise InviteNotFound
     invite.uses += 1
+
+    user_service.add_mutuals(plan, user)
+    plan_service.add_participant(plan, user)
+    user_service.add_plan(plan, user)
 
     try:
         invite.save()

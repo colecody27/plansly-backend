@@ -30,9 +30,11 @@ def create_plan(data, user):
         stock_image=data.get('image_key'),
         uploaded_images=[image_id] if image_id else []
     )
+    user.hosting_count += 1
 
     try:
         plan.save()
+        user.save()
     except Exception as e:
         print(str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
@@ -159,6 +161,11 @@ def lock_activity(plan, activity_id, user=None):
     activity.status = 'confirmed'
     plan.costs.total += float(activity.costs.total_cost)
     plan.costs.per_person = float(plan.costs.total/total_participants)
+
+    # Organizer is already marked as "paid"
+    if plan.organizer in activity.votes:
+        activity.payments.append(plan.organizer)
+        plan.costs.collected += activity.costs.per_person
 
     # Update status of remaining activities to rejected
     rejected_activities = [a for a in plan.activities 

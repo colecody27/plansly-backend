@@ -15,6 +15,7 @@ class User(Document):
     state = StringField()
     city = StringField()
     bio = StringField()
+    mutuals = ListField(ReferenceField('User'))
 
     # Trip Metadata
     hosting_count = IntField(default=0)
@@ -38,5 +39,12 @@ class User(Document):
             "light_theme": self.light_theme,
             'country': self.country,
             'state': self.state,
-            'city': self.city
+            'city': self.city,
+            "mutuals": [
+                {
+                    'id': str(m.id),
+                    'name': m.name,
+                    'picture': m.picture,
+                }
+                for m in self.mutuals]
         }
