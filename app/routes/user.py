@@ -22,15 +22,13 @@ def update_user():
 
     user = user_service.get_user(uid)
     data = request.get_json()
-    data = normalize_args(USER_ALLOWED_FIELDS, data)
+    normalize_args(USER_ALLOWED_FIELDS, data)
 
     user = user_service.update_user(user, data)
 
     return jsonify({'success': True,
             'data': user.to_dict(),
             'msg': 'User retreived succesfully'}), 200
-
-
 
 @user_bp.route('', methods=['GET'])
 @jwt_required()

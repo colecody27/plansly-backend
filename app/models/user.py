@@ -5,7 +5,7 @@ class User(Document):
     auth0_id = StringField(required=True, unique=True)
     email = StringField(required=True, unique=True)
     phone = StringField()
-    venmo = StringField(unique=True)
+    venmo = StringField(unique=True, sparse=True, null=True) 
     name = StringField()
     picture = StringField()
     provider = StringField()    
@@ -46,5 +46,6 @@ class User(Document):
                     'name': m.name,
                     'picture': m.picture,
                 }
-                for m in self.mutuals]
+                for m in self.mutuals
+            ]
         }

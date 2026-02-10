@@ -35,8 +35,11 @@ def sync_user(user, claims):
 
 def update_user(user, data):
     for field in USER_ALLOWED_FIELDS:
-        if data.get(field, None) is not None:
-            setattr(user, field, data[field])
+        value = data.get(field, None)
+        if value is not None:
+            if field == 'venmo' and value == '':
+                value = None
+        setattr(user, field, value)
     try:
         user.save()
     except Exception as e:
