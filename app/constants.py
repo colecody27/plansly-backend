@@ -1,8 +1,6 @@
 from datetime import datetime
 import os
 
-# TODO - Verify that costs are never negative 
-
 USER_ALLOWED_FIELDS={
     'name': str,
     'venmo': str,
@@ -28,6 +26,7 @@ PLAN_ALLOWED_FIELDS={
     'type': str,
     'image_id': str,
     'image_key': str,
+    'is_public': bool
 }
 
 ACTIVITY_ALLOWED_FIELDS={

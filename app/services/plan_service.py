@@ -3,7 +3,7 @@ from app.models.plan import Plan
 from app.models.user import User
 from app.models.message import Message
 from app.models.activity import Activity, ActivityCost
-from app.errors import DatabaseError, PlanNotFound, UserNotAuthorized, ActivityNotFound, NotPlanOrganizer, ValidationError
+from app.errors import DatabaseError, PlanNotFound, UserNotAuthorized, ActivityNotFound, NotPlanOrganizer, ValidationError, UserNotFound
 from mongoengine.queryset.visitor import Q
 import uuid
 from app.constants import PLAN_ALLOWED_FIELDS, ACTIVITY_ALLOWED_FIELDS
@@ -23,6 +23,7 @@ def create_plan(data, user):
         description=data.get('description'),
         type=data.get('type'),
         organizer=user,
+        is_public=data.get('is_public', False),
         deadline=data.get('deadline'),
         start_day=data.get('start_day'),
         end_day=data.get('end_day'),
@@ -56,12 +57,17 @@ def get_plans(user):
 
     return plans
 
+def get_public_plans():
+    plans = Plan.objects(is_public=True)
+
+    return plans
+
 def get_plan(plan_id, user=None):
     plan = Plan.objects(id=plan_id).first() 
     if not plan:
         logger.warning("get_plan not found plan_id=%s", plan_id)
         raise PlanNotFound(plan_id)
-    if user:
+    if user and not plan.is_public:
         if plan.organizer != user and user not in plan.participants:
             raise UserNotAuthorized(user.id)
     
@@ -113,6 +119,9 @@ def delete_plan():
 def create_activity(plan, proposer, data):
     if plan.status != 'active':
         raise UserNotAuthorized
+    if plan.is_open and (proposer != plan.organizer or proposer not in plan.admins):
+        raise UserNotAuthorized
+    
     cost = data.get('cost', 0.0)
     activity = Activity(
         name=data.get('name', None),
@@ -206,6 +215,22 @@ def add_participant(plan, user):
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return plan
 
+def add_admin(plan, organizer, user):
+    if organizer != plan.organizer:
+        raise NotPlanOrganizer
+    if user not in plan.participants:
+        raise UserNotFound(user.id)
+    
+    if user not in plan.admins:
+        plan.participants.remove(user)
+        plan.admins.append(user)
+    try:
+        plan.save()
+    except Exception as e:
+        logger.exception("add_participant save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
+        raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    return plan
+
 def remove_participant(plan, organizer_id, participant_id):
     if plan.organizer_id != organizer_id:
         raise NotPlanOrganizer
@@ -223,12 +248,14 @@ def remove_participant(plan, organizer_id, participant_id):
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return plan
 
-def vote_activity(plan, activity_id, user):
+def vote_activity(plan, user, activity_id):
     activity = next(
         (a for a in plan.activities if a.activity_id == activity_id),
         None)
     if not activity:
         raise ActivityNotFound
+    if user != plan.organizer and user not in plan.admins and user not in plan.participants:
+        raise UserNotAuthorized
     
     # Update votes and costs
     conflicting_activity = next((a for a in plan.activities 

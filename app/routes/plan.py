@@ -81,6 +81,28 @@ def get_plans():
                 'data': plans,
                 'msg': 'Plans retreived succesfully'}), 200
 
+@plan_bp.route('/public', methods=['GET'])
+@jwt_required()
+def get_public_plans():
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized 
+
+    user = user_service.get_user(uid)
+    plans = plan_service.get_public_plans()
+    plans = [plan.to_dict() for plan in plans]
+    
+    for plan in plans:
+        if plan.get('images').get('stock'):
+            download_url = f"{AWS_S3_URL}/{plan['images']['stock']}"
+        else:
+            download_url = image_service.get_download_url(plan['images']['primary']['key'])
+        plan['image_url'] = download_url
+
+    return jsonify({'success': True,
+                'data': plans,
+                'msg': 'Plans retreived succesfully'}), 200
+
 @plan_bp.route('/<plan_id>/update', methods=['PUT'])
 @jwt_required()
 def update_plan(plan_id):
@@ -114,11 +136,11 @@ def create_activity(plan_id):
     current_app.logger.info("create_activity request user_id=%s plan_id=%s", uid, plan_id)
 
     user = user_service.get_user(uid)
+    plan = plan_service.get_plan(plan_id, user)
     
     data = request.get_json()
     normalize_args(ACTIVITY_ALLOWED_FIELDS, data)
     
-    plan = plan_service.get_plan(plan_id, user)
     activity = plan_service.create_activity(plan, user, data)
     
     return jsonify({'success': True,
@@ -159,7 +181,7 @@ def vote_activity(plan_id, activity_id):
     user = user_service.get_user(uid)
     plan = plan_service.get_plan(plan_id, user)
 
-    activity = plan_service.vote_activity(plan, activity_id, user)
+    plan_service.vote_activity(plan, activity_id, user)
     return jsonify({'success': True,
             'data': plan.to_dict(),
             'msg': 'Activity has been voted for succesfully'}), 200
@@ -348,3 +370,63 @@ def get_stock_images():
     return jsonify({'success': True,
         'data': S3_STOCK_IMAGE_URLS,
         'msg': 'Stock image urls retreived successfully'}), 200
+
+@plan_bp.route('/<plan_id>/join', methods=['PUT'])
+@jwt_required()
+def add_participant(plan_id):
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized 
+
+    user = user_service.get_user(uid)
+    plan = plan_service.get_plan(plan_id, user)
+
+    plan = plan_service.add_participant(plan, user)
+    user_service.add_plan(plan, user)
+
+    if plan.image:
+        selected_url = image_service.get_download_url(str(plan.image.key))
+        uploaded_urls = image_service.get_download_urls(str(plan.image.key)) # TODO - Implement
+    else:
+        selected_url = f'{AWS_S3_URL}/{plan.stock_image}'
+        uploaded_urls = []
+
+    return jsonify({'success': True,
+                    'data': {
+                        'plan': plan.to_dict(),   
+                        'image_urls': {
+                            'selected': selected_url,
+                            'uploaded': uploaded_urls
+                        }
+                    },
+                    'msg': 'Plan retreived succesfully'}), 200
+
+@plan_bp.route('/<plan_id>/admin/<participant_id>', methods=['PUT'])
+@jwt_required()
+def add_admin(plan_id, participant_id):
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized 
+
+    organizer = user_service.get_user(uid)
+    participant = user_service.get_user(participant_id)
+    plan = plan_service.get_plan(plan_id, organizer)
+
+    plan = plan_service.add_admin(plan, organizer, participant)
+    
+    if plan.image:
+        selected_url = image_service.get_download_url(str(plan.image.key))
+        uploaded_urls = image_service.get_download_urls(str(plan.image.key)) # TODO - Implement
+    else:
+        selected_url = f'{AWS_S3_URL}/{plan.stock_image}'
+        uploaded_urls = []
+
+    return jsonify({'success': True,
+                    'data': {
+                        'plan': plan.to_dict(),   
+                        'image_urls': {
+                            'selected': selected_url,
+                            'uploaded': uploaded_urls
+                        }
+                    },
+                    'msg': 'Plan retreived succesfully'}), 200

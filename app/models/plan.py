@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField, FloatField, EmbeddedDocumentField, ListField, EmbeddedDocument, ReferenceField
+from mongoengine import Document, StringField, DateTimeField, FloatField, EmbeddedDocumentField, ListField, EmbeddedDocument, ReferenceField, BooleanField
 from datetime import datetime
 from app.models import activity, message
 
@@ -15,6 +15,8 @@ class Plan(Document):
     status = StringField(
         default="active",
         options=['active', 'locked', 'confirmed'])
+    is_public = BooleanField(required=True, default=False)
+    admins = ListField(ReferenceField('User'))
     organizer = ReferenceField('User', required=True)  
     participants = ListField(ReferenceField('User'))
     name = StringField()
@@ -46,6 +48,7 @@ class Plan(Document):
             'description': self.description,
             'type': self.type,
             'status': self.status,
+            'is_public': self.is_public,
             "organizer": {
                 'id': str(self.organizer.id),
                 'venmo': self.organizer.venmo,
@@ -59,6 +62,14 @@ class Plan(Document):
                     'picture': p.picture,
                 } 
                 for p in self.participants
+            ],
+            "admins": [
+                {
+                    'id': str(a.id),
+                    'name': a.name,
+                    'picture': a.picture,
+                } 
+                for a in self.admins
             ],
             'deadline': self.deadline.isoformat() if self.deadline else None,
             'costs': {
