@@ -212,6 +212,8 @@ def get_invite(plan_id):
 
     user = user_service.get_user(uid)
     plan = plan_service.get_plan(plan_id, user)
+    if plan.is_public:
+        raise Unauthorized
     invite = invitation_service.get_invite(plan, user)
     
     invite = invite.to_dict()
@@ -400,6 +402,36 @@ def add_participant(plan_id):
                         }
                     },
                     'msg': 'Plan retreived succesfully'}), 200
+
+@plan_bp.route('/<plan_id>/participant/<admin_id>', methods=['PUT'])
+@jwt_required()
+def make_participant(plan_id, admin_id):
+    uid = get_jwt_identity()
+    if not uid:
+        raise Unauthorized 
+
+    organizer = user_service.get_user(uid)
+    admin = user_service.get_user(admin_id)
+    plan = plan_service.get_plan(plan_id, organizer)
+
+    plan = plan_service.make_participant(plan, organizer, admin)
+    
+    if plan.image:
+        selected_url = image_service.get_download_url(str(plan.image.key))
+        uploaded_urls = image_service.get_download_urls(str(plan.image.key)) # TODO - Implement
+    else:
+        selected_url = f'{AWS_S3_URL}/{plan.stock_image}'
+        uploaded_urls = []
+
+    return jsonify({'success': True,
+                    'data': {
+                        'plan': plan.to_dict(),   
+                        'image_urls': {
+                            'selected': selected_url,
+                            'uploaded': uploaded_urls
+                        }
+                    },
+                    'msg': 'Admin demoted to participant succesfully'}), 200
 
 @plan_bp.route('/<plan_id>/admin/<participant_id>', methods=['PUT'])
 @jwt_required()

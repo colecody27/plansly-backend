@@ -118,9 +118,9 @@ def delete_plan():
 
 def create_activity(plan, proposer, data):
     if plan.status != 'active':
-        raise UserNotAuthorized
-    if plan.is_open and (proposer != plan.organizer or proposer not in plan.admins):
-        raise UserNotAuthorized
+        raise UserNotAuthorized(str(proposer.id))
+    if plan.is_public and (proposer != plan.organizer and proposer not in plan.admins):
+        raise UserNotAuthorized(str(proposer.id))
     
     cost = data.get('cost', 0.0)
     activity = Activity(
@@ -227,7 +227,22 @@ def add_admin(plan, organizer, user):
     try:
         plan.save()
     except Exception as e:
-        logger.exception("add_participant save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
+        logger.exception("add_admin save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
+        raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    return plan
+
+def make_participant(plan, organizer, user):
+    if organizer != plan.organizer:
+        raise NotPlanOrganizer
+    if user in plan.participants:
+        return plan
+    if user in plan.admins:
+        plan.admins.remove(user)
+        plan.participants.append(user)
+    try:
+        plan.save()
+    except Exception as e:
+        logger.exception("make_participant save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     return plan
 
