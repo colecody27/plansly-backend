@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, url_for, session, redirect, render_template, abort, current_app
+from flask import Blueprint, request, jsonify, url_for, session, redirect, render_template, abort, current_app, g
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 import json
 from os import environ as env

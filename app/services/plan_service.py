@@ -1,4 +1,4 @@
-from app.services import invitation_service, user_service, image_service
+from app.services import invitation_service, user_service, image_service, audit_service
 from app.models.plan import Plan
 from app.models.user import User
 from app.models.message import Message
@@ -11,6 +11,7 @@ from app.extensions import s3
 import os
 from datetime import datetime, timezone
 from app.logger import get_logger
+from flask import g
 
 logger = get_logger(__name__)
 
@@ -42,6 +43,7 @@ def create_plan(data, user):
     except Exception as e:
         logger.exception("create_plan initial save failed user_id=%s error=%s", user.id, str(e))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    audit_service.log_event(str(user.id), plan.type, str(plan.id), 'Create plan', None, plan.to_dict(), str(plan.id))
     plan.invitation = invitation_service.create_invite(plan.id)
 
     try:

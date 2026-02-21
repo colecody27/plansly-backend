@@ -1,9 +1,11 @@
 
-from flask import Flask
+from flask import Flask, request, g
 from dotenv import find_dotenv, load_dotenv
 from os import environ as env
+from psycopg_pool import ConnectionPool
 from authlib.integrations.flask_client import OAuth
 from flask_cors import CORS
+import uuid
 
 # Load .env as early as possible so extensions init can read env vars
 ENV_FILE = find_dotenv()
@@ -20,7 +22,7 @@ from datetime import timedelta
 # from app.config import Config
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__)    
     is_prod = env.get('ENV') == 'production'
     app.config.update(
         JWT_TOKEN_LOCATION=["headers", "cookies"],
@@ -54,6 +56,21 @@ def create_app():
         audience=env.get('AUTH0_CLIENT_ID')
     )
 
+    REQUEST_ID_HEADER = "X-Request-Id"
+    @app.before_request
+    def assign_request_id():
+        # Prefer upstream-provided ID if present; otherwise generate one
+        rid = request.headers.get(REQUEST_ID_HEADER)
+        if not rid:
+            rid = str(uuid.uuid4())
+
+        g.request_id = rid
+
+    @app.after_request
+    def add_request_id_header(response):
+        response.headers[REQUEST_ID_HEADER] = getattr(g, "request_id", "")
+        return response
+
     @app.errorhandler(AppError)
     def handle_app_error(err):
         app.logger.warning(
@@ -84,6 +101,24 @@ def create_app():
     connect(
         host=env.get("MONGO_URI"),
         uuidRepresentation="standard"
+    )
+
+    def make_pg_dsn():
+        host = env.get("PGHOST")
+        port = env.get("PGPORT", "5432")
+        db   = env.get("PGDATABASE")
+        user = env.get("PGUSER")
+        pw   = env.get("PGPASSWORD")
+        ssl  = env.get("PGSSLMODE", "require")
+
+        # Note: passwords with special chars should be URL-encoded if you use a URL DSN.
+        return f"postgresql://{user}:{pw}@{host}:{port}/{db}?sslmode={ssl}"
+
+    app.pg_pool = ConnectionPool(
+        conninfo=make_pg_dsn(),
+        min_size=1,
+        max_size=5,
+        timeout=10,          
     )
 
     return app
