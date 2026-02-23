@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 import uuid
 from app.extensions import s3
 from app.models.image import Image
+from app.services import audit_service
+from app.constants import Resource, Status, Action
 from app.logger import get_logger
 
 BUCKET = os.environ["AWS_S3_BUCKET_NAME"]
@@ -58,7 +60,29 @@ def create_image(user, name, type, size, key):
         image.save()
     except Exception as e:
         logger.exception("create_image save failed user_id=%s key=%s error=%s", user.id, key, str(e))
+        audit_service.log_event(
+            actor_id=str(user.id),
+            resource_type=Resource.PROFILE,
+            resource_id=None,
+            event_type=Action.CREATE,
+            status=Status.FAILURE,
+            error_message=str(e),
+            before=None,
+            after=None,
+            idempotency_key=f"{user.id}:image:{key}:create",
+        )
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    audit_service.log_event(
+        actor_id=str(user.id),
+        resource_type=Resource.PROFILE,
+        resource_id=str(image.id),
+        event_type=Action.CREATE,
+        status=Status.SUCCESS,
+        error_message=None,
+        before=None,
+        after=image.to_dict(),
+        idempotency_key=f"{user.id}:image:{key}:create",
+    )
     
     return image
 
@@ -71,13 +95,36 @@ def get_image(id, plan=None):
     return image
 
 def image_uploaded(image):
+    before = image.to_dict()
     image.upload_status = 'uploaded'
 
     try:
         image.save()
     except Exception as e:
         logger.exception("image_uploaded save failed image_id=%s error=%s", image.id, str(e))
+        audit_service.log_event(
+            actor_id=str(getattr(image.uploaded_by, "id", "system")),
+            resource_type=Resource.PROFILE,
+            resource_id=str(image.id),
+            event_type=Action.UPDATE,
+            status=Status.FAILURE,
+            error_message=str(e),
+            before=before,
+            after=None,
+            idempotency_key=f"image:{image.id}:uploaded",
+        )
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    audit_service.log_event(
+        actor_id=str(getattr(image.uploaded_by, "id", "system")),
+        resource_type=Resource.PROFILE,
+        resource_id=str(image.id),
+        event_type=Action.UPDATE,
+        status=Status.SUCCESS,
+        error_message=None,
+        before=before,
+        after=image.to_dict(),
+        idempotency_key=f"image:{image.id}:uploaded",
+    )
 
 
 def get_download_url(key):    

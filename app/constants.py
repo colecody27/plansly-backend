@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+from enum import Enum
 
 USER_ALLOWED_FIELDS={
     'name': str,
@@ -55,3 +56,23 @@ S3_STOCK_IMAGE_URLS = {
     'social': [f'{AWS_S3_URL}/social/social{i}.jpg' for i in range(1, 5)],
     'food': [f'{AWS_S3_URL}/food/dinner{n}.jpg' for n in range(1, 10)],
 }
+
+class Status(Enum):
+    SUCCESS = 'success'
+    FAILURE = 'failure'
+
+class Resource(Enum):
+    TRIP = 'trip'
+    EVENT = 'event'
+    GROUP_PURCHASE = 'group_purchase'
+    ACTIVITY = 'activity'
+    MESSAGE = 'message'
+    INVITE = 'invite'
+    PROFILE = 'profile'
+
+class Action(Enum):
+    CREATE = 'create'
+    READ = 'read'
+    UPDATE = 'update'
+    DELETE = 'DELETE'
+

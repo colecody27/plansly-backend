@@ -12,6 +12,7 @@ import os
 from datetime import datetime, timezone
 from app.logger import get_logger
 from flask import g
+from app.constants import Resource, Status, Action
 
 logger = get_logger(__name__)
 
@@ -42,9 +43,12 @@ def create_plan(data, user):
         user.save()
     except Exception as e:
         logger.exception("create_plan initial save failed user_id=%s error=%s", user.id, str(e))
+        audit_service.log_event(actor_id=str(user.id), resource_type=Resource.TRIP, resource_id=None, event_type=Action.CREATE,
+                                 status=Status.FAILURE, error_message=str(e), before=None, after=None, idempotency_key=str(plan.id))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
-    audit_service.log_event(str(user.id), plan.type, str(plan.id), 'Create plan', None, plan.to_dict(), str(plan.id))
     plan.invitation = invitation_service.create_invite(plan.id)
+    audit_service.log_event(actor_id=str(user.id), resource_type=Resource.TRIP, resource_id=str(plan.id), event_type=Action.CREATE,
+                            status=Status.SUCCESS, error_message=None, before=None, after=plan.to_dict(), idempotency_key=str(plan.id))
 
     try:
         plan.save()
@@ -53,6 +57,19 @@ def create_plan(data, user):
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     logger.info("create_plan created plan_id=%s organizer_id=%s", plan.id, user.id)
     return plan
+
+def _audit_plan_event(actor_id, resource_type, resource_id, event_type, status, error_message=None, before=None, after=None, idempotency_key=None):
+    audit_service.log_event(
+        actor_id=str(actor_id) if actor_id is not None else "system",
+        resource_type=resource_type,
+        resource_id=str(resource_id) if resource_id is not None else None,
+        event_type=event_type,
+        status=status,
+        error_message=error_message,
+        before=before,
+        after=after,
+        idempotency_key=idempotency_key,
+    )
 
 def get_plans(user):
     plans = Plan.objects(Q(organizer=user) | Q(participants=user))
@@ -83,6 +100,7 @@ def serialize_plan(plan_dict):
 def lock_plan(plan, user):
     if user != plan.organizer:
         raise NotPlanOrganizer
+    before = plan.to_dict()
 
     plan.status = 'active' if plan.status == 'locked' else 'locked'
     
@@ -90,12 +108,15 @@ def lock_plan(plan, user):
         plan.save()
     except Exception as e:
         logger.exception("lock_plan save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
+        _audit_plan_event(user.id, Resource.TRIP, plan.id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:lock")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(user.id, Resource.TRIP, plan.id, Action.UPDATE, Status.SUCCESS, before=before, after=plan.to_dict(), idempotency_key=f"{plan.id}:lock")
     return plan
 
 def update_plan(plan, user, data):
     if user != plan.organizer:
         raise NotPlanOrganizer
+    before = plan.to_dict()
     
     for field in PLAN_ALLOWED_FIELDS.keys():
         if field in data:
@@ -112,7 +133,9 @@ def update_plan(plan, user, data):
         plan.save()
     except Exception as e:
         logger.exception("update_plan save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
+        _audit_plan_event(user.id, Resource.TRIP, plan.id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:update")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(user.id, Resource.TRIP, plan.id, Action.UPDATE, Status.SUCCESS, before=before, after=plan.to_dict(), idempotency_key=f"{plan.id}:update")
     return plan
 
 def delete_plan():
@@ -139,12 +162,15 @@ def create_activity(plan, proposer, data):
         plan.save()
     except Exception as e:
         logger.exception("create_activity save failed plan_id=%s error=%s", plan.id, str(e))
+        _audit_plan_event(proposer.id, Resource.ACTIVITY, activity.activity_id, Action.CREATE, Status.FAILURE, str(e), idempotency_key=f"{plan.id}:activity:{activity.activity_id}:create")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(proposer.id, Resource.ACTIVITY, activity.activity_id, Action.CREATE, Status.SUCCESS, after=activity.to_dict(), idempotency_key=f"{plan.id}:activity:{activity.activity_id}:create")
     return activity
 
 def update_activity(plan, user, activity, data):
     if user != plan.organizer:
         raise UserNotAuthorized
+    before = activity.to_dict()
     
     for field in ACTIVITY_ALLOWED_FIELDS:
         if field in data:
@@ -159,7 +185,9 @@ def update_activity(plan, user, activity, data):
             activity.activity_id,
             str(e),
         )
+        _audit_plan_event(user.id, Resource.ACTIVITY, activity.activity_id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:activity:{activity.activity_id}:update")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(user.id, Resource.ACTIVITY, activity.activity_id, Action.UPDATE, Status.SUCCESS, before=before, after=activity.to_dict(), idempotency_key=f"{plan.id}:activity:{activity.activity_id}:update")
     return activity
 
 def get_activity(plan, activity_id):
@@ -181,6 +209,7 @@ def lock_activity(plan, activity_id, user=None):
     activity = next((a for a in plan.activities if a.activity_id == activity_id), None)
     if not activity:
         raise ActivityNotFound
+    before = activity.to_dict()
     
     # Update activity status and plan costs
     total_participants = len(plan.participants) + 1
@@ -205,16 +234,21 @@ def lock_activity(plan, activity_id, user=None):
         plan.save()
     except Exception as e:
         logger.exception("lock_activity save failed plan_id=%s activity_id=%s error=%s", plan.id, activity_id, str(e))
+        _audit_plan_event(user.id if user else plan.organizer.id, Resource.ACTIVITY, activity_id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:activity:{activity_id}:lock")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(user.id if user else plan.organizer.id, Resource.ACTIVITY, activity_id, Action.UPDATE, Status.SUCCESS, before=before, after=activity.to_dict(), idempotency_key=f"{plan.id}:activity:{activity_id}:lock")
     return activity
 
 def add_participant(plan, user):
+    before = plan.to_dict()
     plan.participants.append(user)
     try:
         plan.save()
     except Exception as e:
         logger.exception("add_participant save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
+        _audit_plan_event(user.id, Resource.TRIP, plan.id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:participant:{user.id}:add")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(user.id, Resource.TRIP, plan.id, Action.UPDATE, Status.SUCCESS, before=before, after=plan.to_dict(), idempotency_key=f"{plan.id}:participant:{user.id}:add")
     return plan
 
 def add_admin(plan, organizer, user):
@@ -223,6 +257,7 @@ def add_admin(plan, organizer, user):
     if user not in plan.participants:
         raise UserNotFound(user.id)
     
+    before = plan.to_dict()
     if user not in plan.admins:
         plan.participants.remove(user)
         plan.admins.append(user)
@@ -230,7 +265,9 @@ def add_admin(plan, organizer, user):
         plan.save()
     except Exception as e:
         logger.exception("add_admin save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
+        _audit_plan_event(organizer.id, Resource.TRIP, plan.id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:admin:{user.id}:add")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(organizer.id, Resource.TRIP, plan.id, Action.UPDATE, Status.SUCCESS, before=before, after=plan.to_dict(), idempotency_key=f"{plan.id}:admin:{user.id}:add")
     return plan
 
 def make_participant(plan, organizer, user):
@@ -238,6 +275,7 @@ def make_participant(plan, organizer, user):
         raise NotPlanOrganizer
     if user in plan.participants:
         return plan
+    before = plan.to_dict()
     if user in plan.admins:
         plan.admins.remove(user)
         plan.participants.append(user)
@@ -245,12 +283,15 @@ def make_participant(plan, organizer, user):
         plan.save()
     except Exception as e:
         logger.exception("make_participant save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
+        _audit_plan_event(organizer.id, Resource.TRIP, plan.id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:admin:{user.id}:remove")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(organizer.id, Resource.TRIP, plan.id, Action.UPDATE, Status.SUCCESS, before=before, after=plan.to_dict(), idempotency_key=f"{plan.id}:admin:{user.id}:remove")
     return plan
 
 def remove_participant(plan, organizer_id, participant_id):
     if plan.organizer_id != organizer_id:
         raise NotPlanOrganizer
+    before = plan.to_dict()
     if participant_id in plan.participant_ids:
         plan.participant_ids.remove(participant_id)
     try:
@@ -262,7 +303,9 @@ def remove_participant(plan, organizer_id, participant_id):
             participant_id,
             str(e),
         )
+        _audit_plan_event(organizer_id, Resource.TRIP, plan.id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:participant:{participant_id}:remove")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(organizer_id, Resource.TRIP, plan.id, Action.UPDATE, Status.SUCCESS, before=before, after=plan.to_dict(), idempotency_key=f"{plan.id}:participant:{participant_id}:remove")
     return plan
 
 def vote_activity(plan, user, activity_id):
@@ -288,7 +331,13 @@ def vote_activity(plan, user, activity_id):
     else:
         activity.votes.append(user)
     update_activity_costs(activity)
-    plan.save()
+    before = activity.to_dict()
+    try:
+        plan.save()
+    except Exception as e:
+        logger.exception("vote_activity pre-save failed plan_id=%s activity_id=%s error=%s", plan.id, activity_id, str(e))
+        _audit_plan_event(user.id, Resource.ACTIVITY, activity_id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:activity:{activity_id}:vote:{user.id}")
+        raise DatabaseError("Unexpected database error", details={"exception": str(e)})
 
     try:
         # Finalize activity if max votes are reached
@@ -298,7 +347,9 @@ def vote_activity(plan, user, activity_id):
             plan.save()
     except Exception as e:
         logger.exception("vote_activity save failed plan_id=%s activity_id=%s error=%s", plan.id, activity_id, str(e))
+        _audit_plan_event(user.id, Resource.ACTIVITY, activity_id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:activity:{activity_id}:vote:{user.id}")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(user.id, Resource.ACTIVITY, activity_id, Action.UPDATE, Status.SUCCESS, before=before, after=activity.to_dict(), idempotency_key=f"{plan.id}:activity:{activity_id}:vote:{user.id}")
     return activity
 
 def update_activity_costs(activity):
@@ -335,12 +386,15 @@ def send_message(plan, user, message):
         plan.save()
     except Exception as e:
         logger.exception("send_message save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
+        _audit_plan_event(user.id, Resource.MESSAGE, None, Action.CREATE, Status.FAILURE, str(e), idempotency_key=f"{plan.id}:message:{user.id}:{message.timestamp.isoformat()}")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(user.id, Resource.MESSAGE, None, Action.CREATE, Status.SUCCESS, after=message.to_dict(), idempotency_key=f"{plan.id}:message:{user.id}:{message.timestamp.isoformat()}")
     return message
 
 def pay(plan, user):
     if plan.status != 'locked':
         raise UserNotAuthorized
+    before = plan.to_dict()
     
     for act in plan.activities:
         if user in act.votes and user not in act.payments:
@@ -351,7 +405,9 @@ def pay(plan, user):
         plan.save()
     except Exception as e:
         logger.exception("pay save failed plan_id=%s user_id=%s error=%s", plan.id, user.id, str(e))
+        _audit_plan_event(user.id, Resource.GROUP_PURCHASE, plan.id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:payment:{user.id}")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(user.id, Resource.GROUP_PURCHASE, plan.id, Action.UPDATE, Status.SUCCESS, before=before, after=plan.to_dict(), idempotency_key=f"{plan.id}:payment:{user.id}")
     return plan
 
 
@@ -364,6 +420,7 @@ def is_member(plan_id, user):
     return True
 
 def update_image(plan, image):
+    before = plan.to_dict()
     plan.image = image
     plan.stock_image = None
 
@@ -371,5 +428,7 @@ def update_image(plan, image):
         plan.save()
     except Exception as e:
         logger.exception("update_image save failed plan_id=%s image_id=%s error=%s", plan.id, image.id, str(e))
+        _audit_plan_event(plan.organizer.id, Resource.TRIP, plan.id, Action.UPDATE, Status.FAILURE, str(e), before=before, idempotency_key=f"{plan.id}:image:update")
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
+    _audit_plan_event(plan.organizer.id, Resource.TRIP, plan.id, Action.UPDATE, Status.SUCCESS, before=before, after=plan.to_dict(), idempotency_key=f"{plan.id}:image:update")
     return plan
