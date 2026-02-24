@@ -1,3 +1,5 @@
+import eventlet
+eventlet.monkey_patch()
 from app.extensions import socketio
 from app import create_app
 
