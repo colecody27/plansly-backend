@@ -120,4 +120,13 @@ def create_app():
         timeout=10,          
     )
 
+    try:
+        with app.pg_pool.connection(timeout=5) as conn:
+            with conn.cursor() as cur:
+                cur.execute("select 1")
+                cur.fetchone()
+        app.logger.info("DB pool warm-up OK")
+    except Exception:
+        app.logger.exception("DB pool warm-up FAILED")
+
     return app
