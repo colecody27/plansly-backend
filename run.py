@@ -1,5 +1,5 @@
 import eventlet
-eventlet.monkey_patch()
+eventlet.monkey_patch(thread=False) 
 from app.extensions import socketio
 from app import create_app
 
