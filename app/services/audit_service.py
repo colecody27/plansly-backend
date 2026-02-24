@@ -30,24 +30,24 @@ def log_event(
     request_id = getattr(g, "request_id", None)
     pool = current_app.pg_pool
     with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                AUDIT_INSERT_SQL,
-                (
-                    actor_id,
-                    resource_type,
-                    resource_id,
-                    event_type,
-                    status,
-                    error_message,
-                    before_json,
-                    after_json,
-                    request_id,
-                    idempotency_key,
-                ),
-            )
-            row = cur.fetchone()
-        conn.commit()
+        with conn.transaction():
+            with conn.cursor() as cur:
+                cur.execute(
+                    AUDIT_INSERT_SQL,
+                    (
+                        actor_id,
+                        resource_type,
+                        resource_id,
+                        event_type,
+                        status,
+                        error_message,
+                        before_json,
+                        after_json,
+                        request_id,
+                        idempotency_key,
+                    ),
+                )
+                row = cur.fetchone()
 
     # If idempotency_key conflicted, RETURNING returns no rows
     return row[0] if row else None
