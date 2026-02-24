@@ -29,7 +29,7 @@ def log_event(
 
     request_id = getattr(g, "request_id", None)
     pool = current_app.pg_pool
-    with pool.connection() as conn:
+    with pool.connection(timeout=10) as conn:
         with conn.transaction():
             with conn.cursor() as cur:
                 cur.execute(

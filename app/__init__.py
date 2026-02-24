@@ -111,13 +111,12 @@ def create_app():
         pw   = env.get("PGPASSWORD")
         ssl  = env.get("PGSSLMODE", "require")
 
-        # Note: passwords with special chars should be URL-encoded if you use a URL DSN.
         return f"postgresql://{user}:{pw}@{host}:{port}/{db}?sslmode={ssl}"
 
     app.pg_pool = ConnectionPool(
         conninfo=make_pg_dsn(),
         min_size=1,
-        max_size=3,
+        max_size=10,
         timeout=10,          
     )
 
