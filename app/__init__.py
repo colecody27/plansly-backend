@@ -115,9 +115,9 @@ def create_app():
 
     app.pg_pool = ConnectionPool(
         conninfo=make_pg_dsn(),
-        min_size=5,
+        min_size=2,
         max_size=10,
-        timeout=2,          
+        timeout=10,          
     )
 
     try:

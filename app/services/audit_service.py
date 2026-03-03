@@ -33,25 +33,25 @@ def log_event(
 
         request_id = getattr(g, "request_id", None)
         pool = current_app.pg_pool
-        with pool.connection(timeout=2) as conn:
-            with conn.transaction():
-                with conn.cursor() as cur:
-                    cur.execute(
-                        AUDIT_INSERT_SQL,
-                        (
-                            actor_id,
-                            resource_type,
-                            resource_id,
-                            event_type,
-                            status,
-                            error_message,
-                            before_json,
-                            after_json,
-                            request_id,
-                            idempotency_key,
-                        ),
-                    )
-                    row = cur.fetchone()
+        with pool.connection(timeout=.2) as conn:
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                cur.execute(
+                    AUDIT_INSERT_SQL,
+                    (
+                        actor_id,
+                        resource_type,
+                        resource_id,
+                        event_type,
+                        status,
+                        error_message,
+                        before_json,
+                        after_json,
+                        request_id,
+                        idempotency_key,
+                    ),
+                )
+                row = cur.fetchone()
 
         # If idempotency_key conflicted, RETURNING returns no rows
         return row[0] if row else None
@@ -65,4 +65,5 @@ def log_event(
             status,
             str(e),
         )
+        logger.error("PoolTimeout stats=%s", pool.get_stats())
         return None
