@@ -16,6 +16,19 @@ from app.constants import Resource, Status, Action
 
 logger = get_logger(__name__)
 
+def _audit_plan_event(actor_id, resource_type, resource_id, event_type, status, error_message=None, before=None, after=None, idempotency_key=None):
+    audit_service.log_event(
+        actor_id=str(actor_id) if actor_id is not None else "system",
+        resource_type=resource_type,
+        resource_id=str(resource_id) if resource_id is not None else None,
+        event_type=event_type,
+        status=status,
+        error_message=error_message,
+        before=before,
+        after=after,
+        idempotency_key=idempotency_key,
+    )
+
 def create_plan(data, user):
     image_id = data.get('image_id')
     logger.info("create_plan user_id=%s image_id=%s", user.id, image_id)
@@ -43,11 +56,11 @@ def create_plan(data, user):
         user.save()
     except Exception as e:
         logger.exception("create_plan initial save failed user_id=%s error=%s", user.id, str(e))
-        audit_service.log_event(actor_id=str(user.id), resource_type=Resource.TRIP, resource_id=None, event_type=Action.CREATE,
+        _audit_plan_event(actor_id=str(user.id), resource_type=Resource.TRIP, resource_id=None, event_type=Action.CREATE,
                                  status=Status.FAILURE, error_message=str(e), before=None, after=None, idempotency_key=str(plan.id))
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     plan.invitation = invitation_service.create_invite(plan.id)
-    audit_service.log_event(actor_id=str(user.id), resource_type=Resource.TRIP, resource_id=str(plan.id), event_type=Action.CREATE,
+    _audit_plan_event(actor_id=str(user.id), resource_type=Resource.TRIP, resource_id=str(plan.id), event_type=Action.CREATE,
                             status=Status.SUCCESS, error_message=None, before=None, after=plan.to_dict(), idempotency_key=str(plan.id))
 
     try:
@@ -57,19 +70,6 @@ def create_plan(data, user):
         raise DatabaseError("Unexpected database error", details={"exception": str(e)})
     logger.info("create_plan created plan_id=%s organizer_id=%s", plan.id, user.id)
     return plan
-
-def _audit_plan_event(actor_id, resource_type, resource_id, event_type, status, error_message=None, before=None, after=None, idempotency_key=None):
-    audit_service.log_event(
-        actor_id=str(actor_id) if actor_id is not None else "system",
-        resource_type=resource_type,
-        resource_id=str(resource_id) if resource_id is not None else None,
-        event_type=event_type,
-        status=status,
-        error_message=error_message,
-        before=before,
-        after=after,
-        idempotency_key=idempotency_key,
-    )
 
 def get_plans(user):
     plans = Plan.objects(Q(organizer=user) | Q(participants=user))

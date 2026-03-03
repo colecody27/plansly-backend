@@ -1,5 +1,8 @@
 import json
 from flask import g, current_app
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 AUDIT_INSERT_SQL = """
 INSERT INTO audit.events (
@@ -23,31 +26,43 @@ def log_event(
     after: dict | None = None,
     idempotency_key: str | None = None,
 ) -> str | None:
-    # Convert dicts -> JSON strings for jsonb casts
-    before_json = json.dumps(before) if before is not None else None
-    after_json = json.dumps(after) if after is not None else None
+    try:
+        # Convert dicts -> JSON strings for jsonb casts
+        before_json = json.dumps(before) if before is not None else None
+        after_json = json.dumps(after) if after is not None else None
 
-    request_id = getattr(g, "request_id", None)
-    pool = current_app.pg_pool
-    with pool.connection(timeout=10) as conn:
-        with conn.transaction():
-            with conn.cursor() as cur:
-                cur.execute(
-                    AUDIT_INSERT_SQL,
-                    (
-                        actor_id,
-                        resource_type,
-                        resource_id,
-                        event_type,
-                        status,
-                        error_message,
-                        before_json,
-                        after_json,
-                        request_id,
-                        idempotency_key,
-                    ),
-                )
-                row = cur.fetchone()
+        request_id = getattr(g, "request_id", None)
+        pool = current_app.pg_pool
+        with pool.connection(timeout=2) as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute(
+                        AUDIT_INSERT_SQL,
+                        (
+                            actor_id,
+                            resource_type,
+                            resource_id,
+                            event_type,
+                            status,
+                            error_message,
+                            before_json,
+                            after_json,
+                            request_id,
+                            idempotency_key,
+                        ),
+                    )
+                    row = cur.fetchone()
 
-    # If idempotency_key conflicted, RETURNING returns no rows
-    return row[0] if row else None
+        # If idempotency_key conflicted, RETURNING returns no rows
+        return row[0] if row else None
+    except Exception as e:
+        logger.exception(
+            "audit log_event failed actor_id=%s resource_type=%s resource_id=%s event_type=%s status=%s error=%s",
+            actor_id,
+            resource_type,
+            resource_id,
+            event_type,
+            status,
+            str(e),
+        )
+        return None
