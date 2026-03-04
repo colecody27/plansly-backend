@@ -5,7 +5,7 @@ class User(Document):
     auth0_id = StringField(required=True, unique=True)
     email = StringField(required=True, unique=True)
     phone = StringField()
-    venmo = StringField(unique=True, sparse=True, null=True) 
+    venmo = StringField(null=True) 
     name = StringField()
     picture = StringField()
     provider = StringField()    

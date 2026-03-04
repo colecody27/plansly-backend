@@ -9,7 +9,7 @@ from app.constants import Resource, Status, Action
 from app.logger import get_logger
 
 BUCKET = os.environ["AWS_S3_BUCKET_NAME"]
-MAX_IMAGE_SIZE = 10 * 1024 * 1024
+MAX_IMAGE_SIZE = 10 * 1024 * 1024 # 10 MB
 ALLOWED_FILE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 logger = get_logger(__name__)
